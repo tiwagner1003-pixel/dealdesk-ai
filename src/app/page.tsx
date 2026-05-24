@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 
 type CompanyInput = {
   name: string;
@@ -41,6 +41,15 @@ type ForecastYear = {
 
 type Scenario = "base" | "upside" | "downside";
 type WorkspaceTab = "setup" | "model" | "peers" | "valuation" | "memo";
+
+type AiMemo = {
+  recommendation: string;
+  summary: string;
+  thesis: string[];
+  risks: string[];
+  deckOutline: string[];
+  source: string;
+};
 
 const WORKFLOW_TABS: { id: WorkspaceTab; label: string; description: string }[] = [
   { id: "setup", label: "Case Setup", description: "Company and scenario" },
@@ -228,6 +237,10 @@ export default function Home() {
   const [peers, setPeers] = useState(INITIAL_PEERS);
   const [scenario, setScenario] = useState<Scenario>("base");
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("setup");
+  const [aiMemo, setAiMemo] = useState<AiMemo | null>(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [statusMessage, setStatusMessage] = useState("");
+  const excelInputRef = useRef<HTMLInputElement | null>(null);
 
   const includedPeers = useMemo(() => peers.filter((peer) => peer.included), [peers]);
   const valuationPeers = includedPeers.length > 0 ? includedPeers : peers;
@@ -271,6 +284,23 @@ export default function Home() {
     }),
   }));
   const terminalGrowthColumns = [model.terminalGrowth - 0.5, model.terminalGrowth, model.terminalGrowth + 0.5];
+  const casePayload = {
+    company,
+    model,
+    forecast,
+    peers,
+    scenario,
+    outputs: {
+      dcfEnterpriseValue: dcf.enterpriseValue,
+      dcfEquityValue: dcf.equityValue,
+      blendedEnterpriseValue,
+      blendedEquityValue,
+      blendedSharePrice,
+      medianEvRevenue,
+      medianEvEbitda,
+      terminalShare,
+    },
+  };
 
   function updateCompany(field: keyof CompanyInput, value: string) {
     setCompany((current) => ({ ...current, [field]: value }));
@@ -330,6 +360,296 @@ export default function Home() {
     setPeers((current) => current.filter((_peer, peerIndex) => peerIndex !== index));
   }
 
+  async function exportExcelModel() {
+    const XLSX = await import("xlsx");
+    const workbook = XLSX.utils.book_new();
+
+    const caseSetup = [
+      ["DealDesk AI", `${company.name} valuation case`],
+      ["Company", company.name],
+      ["Ticker", company.ticker],
+      ["Sector", company.sector],
+      ["Region", company.region],
+      ["Currency", company.currency],
+      ["Scenario", scenario],
+    ];
+
+    const assumptions = [
+      ["Metric", "Value"],
+      ["Revenue", model.revenue],
+      ["D&A / Revenue %", model.depreciationPercent],
+      ["Tax Rate %", model.taxRate],
+      ["Capex / Revenue %", model.capexPercent],
+      ["NWC / Revenue %", model.nwcPercent],
+      ["Net Debt", model.netDebt],
+      ["Shares Outstanding", model.shares],
+      ["WACC %", model.wacc],
+      ["Terminal Growth %", model.terminalGrowth],
+      ["Exit Multiple", model.exitMultiple],
+    ];
+
+    const forecastRows = [
+      ["Year", "Revenue Growth %", "EBITDA Margin %"],
+      ...forecast.map((row) => [`Y${row.year}`, row.revenueGrowth, row.ebitdaMargin]),
+    ];
+
+    const dcfRows = [
+      ["Metric", "Value"],
+      ["Gordon Growth EV", dcf.gordonEnterpriseValue],
+      ["Exit Multiple EV", dcf.exitEnterpriseValue],
+      ["Blended DCF EV", dcf.enterpriseValue],
+      ["Equity Value", dcf.equityValue],
+      ["Share Price", dcf.sharePrice],
+      ["Terminal Value Share %", terminalShare],
+    ];
+
+    const peerRows = [
+      ["Included", "Company", "Ticker", "Revenue Growth %", "EBITDA Margin %", "EV/Revenue", "EV/EBITDA"],
+      ...peers.map((peer) => [
+        peer.included ? "Yes" : "No",
+        peer.name,
+        peer.ticker,
+        peer.revenueGrowth,
+        peer.ebitdaMargin,
+        peer.evRevenue,
+        peer.evEbitda,
+      ]),
+    ];
+
+    const sensitivity = [
+      ["WACC / Terminal Growth", ...terminalGrowthColumns.map((growth) => `${growth.toFixed(1)}%`)],
+      ...sensitivityRows.map((row) => [`${row.wacc.toFixed(1)}%`, ...row.values.map((value) => Number(value.toFixed(2)))]),
+    ];
+
+    const memoInputs = [
+      ["Metric", "Value"],
+      ["Blended EV", blendedEnterpriseValue],
+      ["Blended Equity Value", blendedEquityValue],
+      ["Blended Share Price", blendedSharePrice],
+      ["Peer Median EV/Revenue", medianEvRevenue],
+      ["Peer Median EV/EBITDA", medianEvEbitda],
+      ["Valuation Range Low", blendedLow],
+      ["Valuation Range High", blendedHigh],
+    ];
+
+    [
+      ["Case Setup", caseSetup],
+      ["Assumptions", assumptions],
+      ["Forecast", forecastRows],
+      ["DCF", dcfRows],
+      ["Trading Comps", peerRows],
+      ["Sensitivity", sensitivity],
+      ["Memo Inputs", memoInputs],
+    ].forEach(([sheetName, rows]) => {
+      const worksheet = XLSX.utils.aoa_to_sheet(rows as (string | number)[][]);
+      worksheet["!cols"] = Array.from({ length: 8 }, () => ({ wch: 22 }));
+      XLSX.utils.book_append_sheet(workbook, worksheet, sheetName as string);
+    });
+
+    XLSX.writeFile(workbook, `${company.ticker || "dealdesk"}-valuation-model.xlsx`);
+  }
+
+  async function importExcelModel(file: File) {
+    const XLSX = await import("xlsx");
+    const arrayBuffer = await file.arrayBuffer();
+    const workbook = XLSX.read(arrayBuffer, { type: "array" });
+    const getRows = (sheetName: string) =>
+      workbook.Sheets[sheetName]
+        ? (XLSX.utils.sheet_to_json(workbook.Sheets[sheetName], { header: 1 }) as (string | number)[][])
+        : [];
+    const valueMap = (rows: (string | number)[][]) =>
+      new Map(rows.slice(1).map((row) => [String(row[0] || ""), row[1]]));
+
+    const caseRows = valueMap(getRows("Case Setup"));
+    const assumptionRows = valueMap(getRows("Assumptions"));
+    const forecastRows = getRows("Forecast").slice(1);
+    const peerRows = getRows("Trading Comps").slice(1);
+
+    setCompany({
+      name: String(caseRows.get("Company") || company.name),
+      ticker: String(caseRows.get("Ticker") || company.ticker),
+      sector: String(caseRows.get("Sector") || company.sector),
+      region: String(caseRows.get("Region") || company.region),
+      currency: String(caseRows.get("Currency") || company.currency),
+    });
+
+    setModel({
+      revenue: Number(assumptionRows.get("Revenue") || model.revenue),
+      depreciationPercent: Number(assumptionRows.get("D&A / Revenue %") || model.depreciationPercent),
+      taxRate: Number(assumptionRows.get("Tax Rate %") || model.taxRate),
+      capexPercent: Number(assumptionRows.get("Capex / Revenue %") || model.capexPercent),
+      nwcPercent: Number(assumptionRows.get("NWC / Revenue %") || model.nwcPercent),
+      netDebt: Number(assumptionRows.get("Net Debt") || model.netDebt),
+      shares: Number(assumptionRows.get("Shares Outstanding") || model.shares),
+      wacc: Number(assumptionRows.get("WACC %") || model.wacc),
+      terminalGrowth: Number(assumptionRows.get("Terminal Growth %") || model.terminalGrowth),
+      exitMultiple: Number(assumptionRows.get("Exit Multiple") || model.exitMultiple),
+    });
+
+    if (forecastRows.length > 0) {
+      setForecast(
+        forecastRows.slice(0, 5).map((row, index) => ({
+          year: index + 1,
+          revenueGrowth: Number(row[1] || 0),
+          ebitdaMargin: Number(row[2] || 0),
+        })),
+      );
+    }
+
+    if (peerRows.length > 0) {
+      setPeers(
+        peerRows.map((row) => ({
+          included: String(row[0] || "Yes").toLowerCase() !== "no",
+          name: String(row[1] || "Peer"),
+          ticker: String(row[2] || "TICK"),
+          revenueGrowth: Number(row[3] || 0),
+          ebitdaMargin: Number(row[4] || 0),
+          evRevenue: Number(row[5] || 0),
+          evEbitda: Number(row[6] || 0),
+        })),
+      );
+    }
+
+    setStatusMessage("Excel model imported.");
+  }
+
+  async function exportPowerPointDeck() {
+    const pptxgen = (await import("pptxgenjs")).default;
+    const pptx = new pptxgen();
+    pptx.layout = "LAYOUT_WIDE";
+    pptx.author = "DealDesk AI";
+    pptx.subject = `${company.name} valuation case`;
+    pptx.title = `${company.name} Investment Memo`;
+    pptx.company = "DealDesk AI";
+    pptx.theme = {
+      headFontFace: "Aptos Display",
+      bodyFontFace: "Aptos",
+    };
+
+    const navy = "0B1F3A";
+    const blue = "2563EB";
+    const gold = "B7791F";
+    const slate = "17212F";
+    const muted = "657083";
+
+    function addFooter(slide: any, page: number) {
+      slide.addText(`DealDesk AI | ${company.ticker} | ${page}`, {
+        x: 0.45,
+        y: 7.05,
+        w: 12.4,
+        h: 0.18,
+        fontSize: 7,
+        color: "7A8494",
+      });
+    }
+
+    const titleSlide = pptx.addSlide();
+    titleSlide.background = { color: navy };
+    titleSlide.addText("DealDesk AI", { x: 0.5, y: 0.45, w: 2.5, h: 0.35, color: "FFFFFF", fontSize: 16, bold: true });
+    titleSlide.addText(`${company.name} valuation case`, { x: 0.65, y: 2.25, w: 8.2, h: 0.65, color: "FFFFFF", fontSize: 34, bold: true });
+    titleSlide.addText(`${company.sector} | ${company.region} | ${scenario} case`, { x: 0.68, y: 3.05, w: 8.2, h: 0.32, color: "C5D1DF", fontSize: 15 });
+    titleSlide.addShape(pptx.ShapeType.rect, { x: 9.5, y: 1.2, w: 2.9, h: 3.4, fill: { color: "132B4A" }, line: { color: "304A6B" } });
+    titleSlide.addText(`${company.currency} ${blendedSharePrice.toFixed(2)}`, { x: 9.8, y: 2.05, w: 2.4, h: 0.45, color: "FFFFFF", fontSize: 24, bold: true });
+    titleSlide.addText("Implied share price", { x: 9.8, y: 2.56, w: 2.4, h: 0.3, color: "C5D1DF", fontSize: 11 });
+    titleSlide.addText(formatMoney(blendedEquityValue, company.currency), { x: 9.8, y: 3.2, w: 2.4, h: 0.35, color: "FFFFFF", fontSize: 18, bold: true });
+    titleSlide.addText("Blended equity value", { x: 9.8, y: 3.58, w: 2.4, h: 0.3, color: "C5D1DF", fontSize: 11 });
+
+    const summarySlide = pptx.addSlide();
+    summarySlide.addText("Valuation summary", { x: 0.5, y: 0.35, w: 5.5, h: 0.4, color: navy, fontSize: 24, bold: true });
+    [
+      ["DCF EV", formatMoney(dcf.enterpriseValue, company.currency)],
+      ["Comps EV", formatMoney((compsEvRevenue + compsEvEbitda) / 2, company.currency)],
+      ["Blended EV", formatMoney(blendedEnterpriseValue, company.currency)],
+      ["Share price", `${company.currency} ${blendedSharePrice.toFixed(2)}`],
+    ].forEach(([label, value], index) => {
+      const x = 0.55 + index * 3.1;
+      summarySlide.addShape(pptx.ShapeType.rect, { x, y: 1.05, w: 2.75, h: 1.15, fill: { color: index === 2 ? blue : "F4F7FB" }, line: { color: index === 2 ? blue : "D7DEE8" } });
+      summarySlide.addText(value, { x: x + 0.18, y: 1.25, w: 2.35, h: 0.3, color: index === 2 ? "FFFFFF" : slate, fontSize: 17, bold: true });
+      summarySlide.addText(label, { x: x + 0.18, y: 1.62, w: 2.35, h: 0.22, color: index === 2 ? "DDE8FF" : muted, fontSize: 9, bold: true });
+    });
+    summarySlide.addText("Football field range", { x: 0.55, y: 2.75, w: 3, h: 0.3, color: navy, fontSize: 15, bold: true });
+    valuationRows.forEach((row, index) => {
+      const y = 3.2 + index * 0.55;
+      const left = 3.3 + (row.low / valuationScaleMax) * 5.6;
+      const width = Math.max(((row.high - row.low) / valuationScaleMax) * 5.6, 0.25);
+      summarySlide.addText(row.label, { x: 0.7, y, w: 1.7, h: 0.25, color: muted, fontSize: 9, bold: true });
+      summarySlide.addShape(pptx.ShapeType.rect, { x: 2.65, y: y + 0.06, w: 6.4, h: 0.12, fill: { color: "EDF2F8" }, line: { color: "EDF2F8" } });
+      summarySlide.addShape(pptx.ShapeType.rect, { x: left, y: y + 0.02, w: width, h: 0.2, fill: { color: index === 3 ? gold : blue }, line: { color: index === 3 ? gold : blue } });
+      summarySlide.addText(`${formatMoney(row.low, company.currency)} - ${formatMoney(row.high, company.currency)}`, { x: 9.3, y, w: 2.7, h: 0.25, color: slate, fontSize: 9 });
+    });
+    addFooter(summarySlide, 2);
+
+    const compsSlide = pptx.addSlide();
+    compsSlide.addText("Trading comps", { x: 0.5, y: 0.35, w: 5.5, h: 0.4, color: navy, fontSize: 24, bold: true });
+    const tableRows = [["Company", "Ticker", "In", "Growth", "EBITDA", "EV/Rev", "EV/EBITDA"], ...peers.map((peer) => [peer.name, peer.ticker, peer.included ? "Yes" : "No", `${peer.revenueGrowth}%`, `${peer.ebitdaMargin}%`, `${peer.evRevenue}x`, `${peer.evEbitda}x`])];
+    compsSlide.addTable(tableRows as any, {
+      x: 0.55,
+      y: 1.0,
+      w: 12.1,
+      h: 3.8,
+      border: { color: "D7DEE8", pt: 0.5 },
+      fontSize: 9,
+      color: slate,
+      fill: { color: "FFFFFF" },
+      margin: 0.06,
+    });
+    compsSlide.addText(`Median included peer EV/Revenue: ${formatMultiple(medianEvRevenue)} | EV/EBITDA: ${formatMultiple(medianEvEbitda)}`, {
+      x: 0.65,
+      y: 5.35,
+      w: 10.5,
+      h: 0.35,
+      color: navy,
+      fontSize: 14,
+      bold: true,
+    });
+    addFooter(compsSlide, 3);
+
+    const memoSlide = pptx.addSlide();
+    memoSlide.addText("Investment memo", { x: 0.5, y: 0.35, w: 5.5, h: 0.4, color: navy, fontSize: 24, bold: true });
+    memoSlide.addText(`${company.name} is a ${company.region}-based ${company.sector} company. The ${scenario} case implies a blended EV of ${formatMoney(blendedEnterpriseValue, company.currency)} and a share price of ${company.currency} ${blendedSharePrice.toFixed(2)}.`, {
+      x: 0.6,
+      y: 1.05,
+      w: 11.5,
+      h: 0.7,
+      color: slate,
+      fontSize: 14,
+      breakLine: false,
+      fit: "shrink",
+    });
+    memoSlide.addText("Investment thesis", { x: 0.65, y: 2.1, w: 4, h: 0.3, color: navy, fontSize: 15, bold: true });
+    memoSlide.addText("• Attractive exposure to " + company.sector + "\n• Scalable EBITDA profile in forecast period\n• Peer group supports valuation cross-check", { x: 0.75, y: 2.55, w: 5.2, h: 1.4, color: muted, fontSize: 12, breakLine: false });
+    memoSlide.addText("Key risks", { x: 6.65, y: 2.1, w: 4, h: 0.3, color: navy, fontSize: 15, bold: true });
+    memoSlide.addText(`• Terminal value is ${terminalShare.toFixed(0)}% of DCF EV\n• Growth and margin assumptions require diligence\n• Peer multiples need business-model validation`, { x: 6.75, y: 2.55, w: 5.3, h: 1.4, color: muted, fontSize: 12, breakLine: false });
+    addFooter(memoSlide, 4);
+
+    await pptx.writeFile({ fileName: `${company.ticker || "dealdesk"}-investment-memo.pptx` });
+  }
+
+  async function generateAiMemo() {
+    setAiLoading(true);
+    setStatusMessage("");
+
+    try {
+      const response = await fetch("/api/ai-memo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(casePayload),
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || "AI memo generation failed.");
+      }
+
+      setAiMemo(data.memo);
+      setStatusMessage(data.memo.source === "fallback" ? "Memo generated with local fallback. Add OPENAI_API_KEY for AI output." : "AI memo generated.");
+    } catch (error) {
+      setStatusMessage(error instanceof Error ? error.message : "AI memo generation failed.");
+    } finally {
+      setAiLoading(false);
+    }
+  }
+
   return (
     <main className="shell">
       <header className="topbar">
@@ -341,12 +661,29 @@ export default function Home() {
           <p>Finance analyst workbench for modeling, valuation, peer groups, and investment memos.</p>
         </div>
         <div className="topbar-actions">
-          <button className="ghost-button" type="button">
-            Export memo
+          <input
+            ref={excelInputRef}
+            className="hidden-file"
+            type="file"
+            accept=".xlsx,.xls"
+            onChange={(event) => {
+              const file = event.target.files?.[0];
+              if (file) void importExcelModel(file);
+              event.currentTarget.value = "";
+            }}
+          />
+          <button className="ghost-button" onClick={() => excelInputRef.current?.click()} type="button">
+            Import Excel
           </button>
-          <button type="button">Create pitch deck</button>
+          <button className="ghost-button" onClick={exportExcelModel} type="button">
+            Export Excel
+          </button>
+          <button type="button" onClick={exportPowerPointDeck}>
+            Create pitch deck
+          </button>
         </div>
       </header>
+      {statusMessage && <p className="status-banner">{statusMessage}</p>}
 
       <section className="hero-panel">
         <div>
@@ -719,30 +1056,48 @@ export default function Home() {
           {activeTab === "memo" && (
           <section className="memo-grid">
             <article className="panel memo-card">
-              <p className="eyebrow">Investment Memo</p>
-              <h2>{company.name} initial view</h2>
+              <div className="section-heading horizontal">
+                <div>
+                  <p className="eyebrow">Investment Memo</p>
+                  <h2>{company.name} initial view</h2>
+                </div>
+                <button className="ghost-button" disabled={aiLoading} onClick={generateAiMemo} type="button">
+                  {aiLoading ? "Generating..." : "Generate AI memo"}
+                </button>
+              </div>
               <p>
-                {company.name} is a {company.region}-based {company.sector} company. Under the {scenario} case, revenue
-                is projected to reach {formatMoney(nextRevenue, company.currency)} next year, with EBITDA margin at
-                {" "}
-                {dcf.projection[0]?.ebitdaMargin.toFixed(1)}
-                %. The blended valuation triangulates to {formatMoney(blendedEnterpriseValue, company.currency)} EV.
+                {aiMemo?.summary ||
+                  `${company.name} is a ${company.region}-based ${company.sector} company. Under the ${scenario} case, revenue is projected to reach ${formatMoney(nextRevenue, company.currency)} next year, with EBITDA margin at ${dcf.projection[0]?.ebitdaMargin.toFixed(1)}%. The blended valuation triangulates to ${formatMoney(blendedEnterpriseValue, company.currency)} EV.`}
               </p>
+              {aiMemo?.recommendation && (
+                <div className="recommendation-pill">
+                  <span>Recommendation</span>
+                  <strong>{aiMemo.recommendation}</strong>
+                </div>
+              )}
               <div className="memo-columns">
                 <div>
                   <strong>Investment thesis</strong>
                   <ul>
-                    <li>Attractive sector exposure in {company.sector}.</li>
-                    <li>Model implies scalable EBITDA profile.</li>
-                    <li>Peer group supports multiple-based valuation checks.</li>
+                    {(aiMemo?.thesis || [
+                      `Attractive sector exposure in ${company.sector}.`,
+                      "Model implies scalable EBITDA profile.",
+                      "Peer group supports multiple-based valuation checks.",
+                    ]).map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
                   </ul>
                 </div>
                 <div>
                   <strong>Key risks</strong>
                   <ul>
-                    <li>Terminal value sensitivity is {terminalShare.toFixed(0)}% of DCF EV.</li>
-                    <li>Growth assumptions drive most of the upside case.</li>
-                    <li>Peer multiples require validation against business model quality.</li>
+                    {(aiMemo?.risks || [
+                      `Terminal value sensitivity is ${terminalShare.toFixed(0)}% of DCF EV.`,
+                      "Growth assumptions drive most of the upside case.",
+                      "Peer multiples require validation against business model quality.",
+                    ]).map((item) => (
+                      <li key={item}>{item}</li>
+                    ))}
                   </ul>
                 </div>
               </div>
@@ -751,11 +1106,15 @@ export default function Home() {
               <p className="eyebrow">Pitch Deck Outline</p>
               <h2>IC-style slide flow</h2>
               <ol>
-                <li>Company profile and transaction context</li>
-                <li>Financial model summary and key assumptions</li>
-                <li>Peer group and trading comps output</li>
-                <li>DCF, sensitivity and football field valuation</li>
-                <li>Investment thesis, risks and recommendation</li>
+                {(aiMemo?.deckOutline || [
+                  "Company profile and transaction context",
+                  "Financial model summary and key assumptions",
+                  "Peer group and trading comps output",
+                  "DCF, sensitivity and football field valuation",
+                  "Investment thesis, risks and recommendation",
+                ]).map((item) => (
+                  <li key={item}>{item}</li>
+                ))}
               </ol>
             </article>
           </section>
