@@ -34,6 +34,15 @@ type Peer = {
 };
 
 type Scenario = "base" | "upside" | "downside";
+type WorkspaceTab = "setup" | "model" | "peers" | "valuation" | "memo";
+
+const WORKFLOW_TABS: { id: WorkspaceTab; label: string; description: string }[] = [
+  { id: "setup", label: "Case Setup", description: "Company and scenario" },
+  { id: "model", label: "Model", description: "Operating assumptions" },
+  { id: "peers", label: "Peers", description: "Trading comps" },
+  { id: "valuation", label: "Valuation", description: "DCF and outputs" },
+  { id: "memo", label: "Memo", description: "Investment view" },
+];
 
 const INITIAL_COMPANY: CompanyInput = {
   name: "Adyen",
@@ -170,6 +179,7 @@ export default function Home() {
   const [model, setModel] = useState(INITIAL_MODEL);
   const [peers, setPeers] = useState(INITIAL_PEERS);
   const [scenario, setScenario] = useState<Scenario>("base");
+  const [activeTab, setActiveTab] = useState<WorkspaceTab>("setup");
 
   const dcf = useMemo(() => calculateDcf(model, scenario), [model, scenario]);
   const medianEvRevenue = useMemo(() => median(peers.map((peer) => peer.evRevenue)), [peers]);
@@ -266,57 +276,78 @@ export default function Home() {
         </div>
       </section>
 
-      <section className="workspace-grid">
-        <aside className="left-rail">
-          <section className="panel">
-            <div className="section-heading">
-              <p className="eyebrow">Company Input</p>
-              <h2>Case setup</h2>
-            </div>
-            <label>
-              Company
-              <input value={company.name} onChange={(event) => updateCompany("name", event.target.value)} />
-            </label>
-            <label>
-              Ticker
-              <input value={company.ticker} onChange={(event) => updateCompany("ticker", event.target.value)} />
-            </label>
-            <label>
-              Sector
-              <input value={company.sector} onChange={(event) => updateCompany("sector", event.target.value)} />
-            </label>
-            <label>
-              Region
-              <input value={company.region} onChange={(event) => updateCompany("region", event.target.value)} />
-            </label>
-            <label>
-              Currency
-              <input value={company.currency} onChange={(event) => updateCompany("currency", event.target.value.toUpperCase())} />
-            </label>
-          </section>
+      <nav className="workflow-tabs" aria-label="DealDesk workflow">
+        {WORKFLOW_TABS.map((tab) => (
+          <button
+            className={activeTab === tab.id ? "active" : ""}
+            key={tab.id}
+            onClick={() => setActiveTab(tab.id)}
+            type="button"
+          >
+            <strong>{tab.label}</strong>
+            <span>{tab.description}</span>
+          </button>
+        ))}
+      </nav>
 
-          <section className="panel">
-            <div className="section-heading">
-              <p className="eyebrow">Scenario</p>
-              <h2>Valuation case</h2>
-            </div>
-            <div className="segmented-control">
-              {(["downside", "base", "upside"] as Scenario[]).map((item) => (
-                <button
-                  className={scenario === item ? "active" : ""}
-                  key={item}
-                  onClick={() => setScenario(item)}
-                  type="button"
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-          </section>
-        </aside>
-
+      <section className="deal-layout">
         <div className="main-stack">
-          <section className="panel model-panel">
+          {activeTab === "setup" && (
+            <section className="panel workspace-panel">
+              <div className="section-heading horizontal">
+                <div>
+                  <p className="eyebrow">Company Input</p>
+                  <h2>Case setup</h2>
+                </div>
+                <span>Set the investment case context before modeling.</span>
+              </div>
+
+              <div className="setup-grid">
+                <label>
+                  Company
+                  <input value={company.name} onChange={(event) => updateCompany("name", event.target.value)} />
+                </label>
+                <label>
+                  Ticker
+                  <input value={company.ticker} onChange={(event) => updateCompany("ticker", event.target.value)} />
+                </label>
+                <label>
+                  Sector
+                  <input value={company.sector} onChange={(event) => updateCompany("sector", event.target.value)} />
+                </label>
+                <label>
+                  Region
+                  <input value={company.region} onChange={(event) => updateCompany("region", event.target.value)} />
+                </label>
+                <label>
+                  Currency
+                  <input value={company.currency} onChange={(event) => updateCompany("currency", event.target.value.toUpperCase())} />
+                </label>
+              </div>
+
+              <div className="scenario-panel">
+                <div>
+                  <p className="eyebrow">Scenario</p>
+                  <h3>Valuation case</h3>
+                </div>
+                <div className="segmented-control">
+                  {(["downside", "base", "upside"] as Scenario[]).map((item) => (
+                    <button
+                      className={scenario === item ? "active" : ""}
+                      key={item}
+                      onClick={() => setScenario(item)}
+                      type="button"
+                    >
+                      {item}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </section>
+          )}
+
+          {activeTab === "model" && (
+          <section className="panel workspace-panel model-panel">
             <div className="section-heading horizontal">
               <div>
                 <p className="eyebrow">Financial Model</p>
@@ -372,7 +403,9 @@ export default function Home() {
               </label>
             </div>
           </section>
+          )}
 
+          {activeTab === "valuation" && (
           <section className="analytics-grid">
             <article className="panel valuation-card">
               <p className="eyebrow">DCF Output</p>
@@ -416,8 +449,10 @@ export default function Home() {
               </div>
             </article>
           </section>
+          )}
 
-          <section className="panel">
+          {activeTab === "peers" && (
+          <section className="panel workspace-panel">
             <div className="section-heading horizontal">
               <div>
                 <p className="eyebrow">Peer Group</p>
@@ -453,8 +488,10 @@ export default function Home() {
               ))}
             </div>
           </section>
+          )}
 
-          <section className="panel">
+          {activeTab === "valuation" && (
+          <section className="panel workspace-panel">
             <div className="section-heading horizontal">
               <div>
                 <p className="eyebrow">Projection</p>
@@ -481,7 +518,9 @@ export default function Home() {
               ))}
             </div>
           </section>
+          )}
 
+          {activeTab === "memo" && (
           <section className="memo-grid">
             <article className="panel memo-card">
               <p className="eyebrow">Investment Memo</p>
@@ -517,7 +556,49 @@ export default function Home() {
               </div>
             </article>
           </section>
+          )}
         </div>
+
+        <aside className="output-rail">
+          <section className="panel output-card">
+            <p className="eyebrow">Live Output</p>
+            <h2>{company.name}</h2>
+            <div className="output-list">
+              <div>
+                <span>Blended EV</span>
+                <strong>{formatMoney(blendedEnterpriseValue, company.currency)}</strong>
+              </div>
+              <div>
+                <span>Blended equity value</span>
+                <strong>{formatMoney(blendedEquityValue, company.currency)}</strong>
+              </div>
+              <div>
+                <span>Implied share price</span>
+                <strong>
+                  {company.currency} {blendedSharePrice.toFixed(2)}
+                </strong>
+              </div>
+              <div>
+                <span>DCF EV</span>
+                <strong>{formatMoney(dcf.enterpriseValue, company.currency)}</strong>
+              </div>
+              <div>
+                <span>Peer EV/EBITDA</span>
+                <strong>{formatMultiple(medianEvEbitda)}</strong>
+              </div>
+            </div>
+          </section>
+
+          <section className="panel next-actions">
+            <p className="eyebrow">Next steps</p>
+            <ul>
+              <li>Validate peer group business model fit.</li>
+              <li>Add yearly revenue and margin assumptions.</li>
+              <li>Build sensitivity table for WACC and terminal growth.</li>
+              <li>Export memo into a pitch deck slide.</li>
+            </ul>
+          </section>
+        </aside>
       </section>
     </main>
   );

@@ -227,17 +227,64 @@ label {
   line-height: 1.12;
 }
 
-.workspace-grid {
+.workflow-tabs {
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  margin-bottom: 18px;
+  padding: 8px;
+}
+
+.workflow-tabs button {
+  background: transparent;
+  border-radius: 6px;
+  color: var(--text);
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+  min-height: 74px;
+  padding: 10px 12px;
+  text-align: left;
+}
+
+.workflow-tabs button:hover,
+.workflow-tabs button.active {
+  background: var(--accent-soft);
+  color: var(--accent-dark);
+  transform: none;
+}
+
+.workflow-tabs strong {
+  font-size: 16px;
+}
+
+.workflow-tabs span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.3;
+}
+
+.deal-layout {
   align-items: start;
   display: grid;
   gap: 18px;
-  grid-template-columns: minmax(280px, 330px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) minmax(300px, 350px);
 }
 
-.left-rail,
 .main-stack {
   display: grid;
   gap: 18px;
+}
+
+.output-rail {
+  display: grid;
+  gap: 18px;
+  position: sticky;
+  top: 18px;
 }
 
 .panel {
@@ -271,6 +318,33 @@ label {
   color: var(--muted);
   font-size: 13px;
   font-weight: 800;
+}
+
+.workspace-panel {
+  min-height: 520px;
+}
+
+.setup-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.scenario-panel {
+  align-items: center;
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(180px, 0.45fr) minmax(0, 1fr);
+  margin-top: 6px;
+  padding: 16px;
+}
+
+.scenario-panel h3 {
+  font-size: 18px;
+  margin: 4px 0 0;
 }
 
 .segmented-control {
@@ -403,6 +477,40 @@ label {
   display: grid;
 }
 
+.output-card h2 {
+  font-size: 24px;
+  margin: 0;
+}
+
+.output-list {
+  border-top: 1px solid var(--line);
+  display: grid;
+  gap: 12px;
+  padding-top: 14px;
+}
+
+.output-list div {
+  display: grid;
+  gap: 4px;
+}
+
+.output-list span {
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.output-list strong {
+  font-size: 20px;
+}
+
+.next-actions ul {
+  color: var(--muted);
+  line-height: 1.55;
+  margin: 0;
+  padding-left: 18px;
+}
+
 .memo-card h2 {
   font-size: 26px;
   margin: 0;
@@ -438,15 +546,25 @@ label {
 
 @media (max-width: 1040px) {
   .hero-panel,
-  .workspace-grid,
+  .deal-layout,
   .input-grid,
   .analytics-grid,
-  .memo-columns {
+  .memo-columns,
+  .setup-grid,
+  .scenario-panel {
     grid-template-columns: 1fr;
   }
 
   .hero-metrics {
     grid-template-columns: 1fr;
+  }
+
+  .workflow-tabs {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .output-rail {
+    position: static;
   }
 }
 
@@ -471,5 +589,14 @@ label {
 
   .hero-panel h1 {
     font-size: 31px;
+  }
+
+  .workflow-tabs {
+    grid-template-columns: 1fr;
+  }
+
+  .workflow-tabs button,
+  .workspace-panel {
+    min-height: auto;
   }
 }

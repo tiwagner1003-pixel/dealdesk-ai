@@ -40,6 +40,19 @@ The intended workflow:
 - Supabase persistence
 - Vercel deployment
 
+## Development Agents
+
+`AGENTS.md` defines the project roles for building DealDesk AI:
+
+- Finance Product Strategist
+- Valuation & Modeling Agent
+- Analyst UX/UI Agent
+- AI Finance Workflow Agent
+- Full-Stack Engineer
+- QA & Deployment Agent
+
+These are development roles, not user-facing app agents. They help structure future product decisions and implementation work.
+
 ## Local Setup
 
 Install dependencies:
