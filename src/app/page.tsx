@@ -12,8 +12,6 @@ type CompanyInput = {
 
 type ModelInput = {
   revenue: number;
-  revenueGrowth: number;
-  ebitdaMargin: number;
   depreciationPercent: number;
   taxRate: number;
   capexPercent: number;
@@ -22,15 +20,23 @@ type ModelInput = {
   shares: number;
   wacc: number;
   terminalGrowth: number;
+  exitMultiple: number;
 };
 
 type Peer = {
+  included: boolean;
   name: string;
   ticker: string;
   revenueGrowth: number;
   ebitdaMargin: number;
   evRevenue: number;
   evEbitda: number;
+};
+
+type ForecastYear = {
+  year: number;
+  revenueGrowth: number;
+  ebitdaMargin: number;
 };
 
 type Scenario = "base" | "upside" | "downside";
@@ -54,8 +60,6 @@ const INITIAL_COMPANY: CompanyInput = {
 
 const INITIAL_MODEL: ModelInput = {
   revenue: 1850,
-  revenueGrowth: 14,
-  ebitdaMargin: 48,
   depreciationPercent: 4,
   taxRate: 25,
   capexPercent: 5,
@@ -64,10 +68,20 @@ const INITIAL_MODEL: ModelInput = {
   shares: 31,
   wacc: 9,
   terminalGrowth: 3,
+  exitMultiple: 16,
 };
+
+const INITIAL_FORECAST: ForecastYear[] = [
+  { year: 1, revenueGrowth: 15, ebitdaMargin: 45 },
+  { year: 2, revenueGrowth: 14, ebitdaMargin: 46 },
+  { year: 3, revenueGrowth: 12, ebitdaMargin: 47 },
+  { year: 4, revenueGrowth: 10, ebitdaMargin: 48 },
+  { year: 5, revenueGrowth: 8, ebitdaMargin: 49 },
+];
 
 const INITIAL_PEERS: Peer[] = [
   {
+    included: true,
     name: "PayPal",
     ticker: "PYPL",
     revenueGrowth: 7,
@@ -76,6 +90,7 @@ const INITIAL_PEERS: Peer[] = [
     evEbitda: 9.8,
   },
   {
+    included: true,
     name: "Block",
     ticker: "SQ",
     revenueGrowth: 11,
@@ -84,6 +99,7 @@ const INITIAL_PEERS: Peer[] = [
     evEbitda: 12.6,
   },
   {
+    included: true,
     name: "Wise",
     ticker: "WISE.L",
     revenueGrowth: 18,
@@ -92,6 +108,7 @@ const INITIAL_PEERS: Peer[] = [
     evEbitda: 19.4,
   },
   {
+    included: true,
     name: "Nexi",
     ticker: "NEXI.MI",
     revenueGrowth: 5,
@@ -121,21 +138,37 @@ function median(values: number[]) {
   return sorted[mid];
 }
 
+function percentile(values: number[], percentileValue: number) {
+  const sorted = [...values].sort((a, b) => a - b);
+  if (sorted.length === 0) return 0;
+
+  const index = (sorted.length - 1) * percentileValue;
+  const lower = Math.floor(index);
+  const upper = Math.ceil(index);
+
+  if (lower === upper) return sorted[lower];
+  return sorted[lower] + (sorted[upper] - sorted[lower]) * (index - lower);
+}
+
 function pct(value: number) {
   return value / 100;
 }
 
-function calculateProjection(model: ModelInput, scenario: Scenario) {
-  const scenarioGrowth =
-    scenario === "upside" ? model.revenueGrowth + 4 : scenario === "downside" ? model.revenueGrowth - 5 : model.revenueGrowth;
-  const scenarioMargin =
-    scenario === "upside" ? model.ebitdaMargin + 3 : scenario === "downside" ? model.ebitdaMargin - 5 : model.ebitdaMargin;
-  const years = [1, 2, 3, 4, 5];
+function getScenarioAdjustment(scenario: Scenario) {
+  if (scenario === "upside") return { growth: 3, margin: 2 };
+  if (scenario === "downside") return { growth: -4, margin: -3 };
+  return { growth: 0, margin: 0 };
+}
+
+function calculateProjection(model: ModelInput, forecast: ForecastYear[], scenario: Scenario) {
+  const scenarioAdjustment = getScenarioAdjustment(scenario);
   let revenue = model.revenue;
 
-  return years.map((year) => {
-    revenue *= 1 + pct(scenarioGrowth);
-    const ebitda = revenue * pct(scenarioMargin);
+  return forecast.map((assumption) => {
+    const growth = assumption.revenueGrowth + scenarioAdjustment.growth;
+    const margin = assumption.ebitdaMargin + scenarioAdjustment.margin;
+    revenue *= 1 + pct(growth);
+    const ebitda = revenue * pct(margin);
     const depreciation = revenue * pct(model.depreciationPercent);
     const ebit = ebitda - depreciation;
     const tax = Math.max(0, ebit * pct(model.taxRate));
@@ -144,7 +177,9 @@ function calculateProjection(model: ModelInput, scenario: Scenario) {
     const fcf = ebit - tax + depreciation - capex - nwc;
 
     return {
-      year,
+      year: assumption.year,
+      revenueGrowth: growth,
+      ebitdaMargin: margin,
       revenue,
       ebitda,
       ebit,
@@ -153,45 +188,89 @@ function calculateProjection(model: ModelInput, scenario: Scenario) {
   });
 }
 
-function calculateDcf(model: ModelInput, scenario: Scenario) {
-  const projection = calculateProjection(model, scenario);
+function calculateDcf(model: ModelInput, forecast: ForecastYear[], scenario: Scenario) {
+  const projection = calculateProjection(model, forecast, scenario);
   const discountRate = pct(model.wacc);
   const terminalGrowth = pct(model.terminalGrowth);
   const pvFcfs = projection.map((row) => row.fcf / (1 + discountRate) ** row.year);
   const finalFcf = projection[projection.length - 1].fcf;
-  const terminalValue = (finalFcf * (1 + terminalGrowth)) / Math.max(discountRate - terminalGrowth, 0.01);
-  const pvTerminal = terminalValue / (1 + discountRate) ** projection.length;
-  const enterpriseValue = pvFcfs.reduce((sum, value) => sum + value, 0) + pvTerminal;
+  const finalEbitda = projection[projection.length - 1].ebitda;
+  const gordonTerminalValue = (finalFcf * (1 + terminalGrowth)) / Math.max(discountRate - terminalGrowth, 0.01);
+  const exitTerminalValue = finalEbitda * model.exitMultiple;
+  const pvGordonTerminal = gordonTerminalValue / (1 + discountRate) ** projection.length;
+  const pvExitTerminal = exitTerminalValue / (1 + discountRate) ** projection.length;
+  const pvForecast = pvFcfs.reduce((sum, value) => sum + value, 0);
+  const gordonEnterpriseValue = pvForecast + pvGordonTerminal;
+  const exitEnterpriseValue = pvForecast + pvExitTerminal;
+  const enterpriseValue = (gordonEnterpriseValue + exitEnterpriseValue) / 2;
   const equityValue = enterpriseValue - model.netDebt;
   const sharePrice = model.shares > 0 ? equityValue / model.shares : 0;
 
   return {
     projection,
     enterpriseValue,
+    gordonEnterpriseValue,
+    exitEnterpriseValue,
     equityValue,
     sharePrice,
-    pvTerminal,
+    pvTerminal: (pvGordonTerminal + pvExitTerminal) / 2,
   };
+}
+
+function enterpriseToSharePrice(enterpriseValue: number, model: ModelInput) {
+  return model.shares > 0 ? (enterpriseValue - model.netDebt) / model.shares : 0;
 }
 
 export default function Home() {
   const [company, setCompany] = useState(INITIAL_COMPANY);
   const [model, setModel] = useState(INITIAL_MODEL);
+  const [forecast, setForecast] = useState(INITIAL_FORECAST);
   const [peers, setPeers] = useState(INITIAL_PEERS);
   const [scenario, setScenario] = useState<Scenario>("base");
   const [activeTab, setActiveTab] = useState<WorkspaceTab>("setup");
 
-  const dcf = useMemo(() => calculateDcf(model, scenario), [model, scenario]);
-  const medianEvRevenue = useMemo(() => median(peers.map((peer) => peer.evRevenue)), [peers]);
-  const medianEvEbitda = useMemo(() => median(peers.map((peer) => peer.evEbitda)), [peers]);
-  const currentEbitda = model.revenue * pct(model.ebitdaMargin);
+  const includedPeers = useMemo(() => peers.filter((peer) => peer.included), [peers]);
+  const valuationPeers = includedPeers.length > 0 ? includedPeers : peers;
+  const dcf = useMemo(() => calculateDcf(model, forecast, scenario), [model, forecast, scenario]);
+  const downsideDcf = useMemo(() => calculateDcf(model, forecast, "downside"), [model, forecast]);
+  const baseDcf = useMemo(() => calculateDcf(model, forecast, "base"), [model, forecast]);
+  const upsideDcf = useMemo(() => calculateDcf(model, forecast, "upside"), [model, forecast]);
+  const medianEvRevenue = useMemo(() => median(valuationPeers.map((peer) => peer.evRevenue)), [valuationPeers]);
+  const medianEvEbitda = useMemo(() => median(valuationPeers.map((peer) => peer.evEbitda)), [valuationPeers]);
+  const evRevenueLow = useMemo(() => percentile(valuationPeers.map((peer) => peer.evRevenue), 0.25), [valuationPeers]);
+  const evRevenueHigh = useMemo(() => percentile(valuationPeers.map((peer) => peer.evRevenue), 0.75), [valuationPeers]);
+  const evEbitdaLow = useMemo(() => percentile(valuationPeers.map((peer) => peer.evEbitda), 0.25), [valuationPeers]);
+  const evEbitdaHigh = useMemo(() => percentile(valuationPeers.map((peer) => peer.evEbitda), 0.75), [valuationPeers]);
+  const currentEbitda = model.revenue * pct(forecast[0]?.ebitdaMargin || 0);
   const compsEvRevenue = model.revenue * medianEvRevenue;
   const compsEvEbitda = currentEbitda * medianEvEbitda;
+  const compsRevenueLow = model.revenue * evRevenueLow;
+  const compsRevenueHigh = model.revenue * evRevenueHigh;
+  const compsEbitdaLow = currentEbitda * evEbitdaLow;
+  const compsEbitdaHigh = currentEbitda * evEbitdaHigh;
   const blendedEnterpriseValue = (dcf.enterpriseValue + compsEvRevenue + compsEvEbitda) / 3;
   const blendedEquityValue = blendedEnterpriseValue - model.netDebt;
   const blendedSharePrice = model.shares > 0 ? blendedEquityValue / model.shares : 0;
   const nextRevenue = dcf.projection[0]?.revenue || model.revenue;
   const terminalShare = dcf.enterpriseValue > 0 ? (dcf.pvTerminal / dcf.enterpriseValue) * 100 : 0;
+  const dcfRange = [downsideDcf.enterpriseValue, baseDcf.enterpriseValue, upsideDcf.enterpriseValue];
+  const blendedLow = (downsideDcf.enterpriseValue + compsRevenueLow + compsEbitdaLow) / 3;
+  const blendedHigh = (upsideDcf.enterpriseValue + compsRevenueHigh + compsEbitdaHigh) / 3;
+  const valuationRows = [
+    { label: "DCF", low: Math.min(...dcfRange), high: Math.max(...dcfRange) },
+    { label: "EV / Revenue", low: compsRevenueLow, high: compsRevenueHigh },
+    { label: "EV / EBITDA", low: compsEbitdaLow, high: compsEbitdaHigh },
+    { label: "Blended range", low: blendedLow, high: blendedHigh },
+  ];
+  const valuationScaleMax = Math.max(...valuationRows.map((row) => row.high), 1);
+  const sensitivityRows = [model.wacc - 1, model.wacc, model.wacc + 1].map((wacc) => ({
+    wacc,
+    values: [model.terminalGrowth - 0.5, model.terminalGrowth, model.terminalGrowth + 0.5].map((terminalGrowth) => {
+      const sensitivityModel = { ...model, wacc, terminalGrowth };
+      return calculateDcf(sensitivityModel, forecast, scenario).sharePrice;
+    }),
+  }));
+  const terminalGrowthColumns = [model.terminalGrowth - 0.5, model.terminalGrowth, model.terminalGrowth + 0.5];
 
   function updateCompany(field: keyof CompanyInput, value: string) {
     setCompany((current) => ({ ...current, [field]: value }));
@@ -201,13 +280,31 @@ export default function Home() {
     setModel((current) => ({ ...current, [field]: Number(value) || 0 }));
   }
 
+  function updateForecast(index: number, field: keyof ForecastYear, value: string) {
+    setForecast((current) =>
+      current.map((row, rowIndex) =>
+        rowIndex === index
+          ? {
+              ...row,
+              [field]: Number(value) || 0,
+            }
+          : row,
+      ),
+    );
+  }
+
   function updatePeer(index: number, field: keyof Peer, value: string) {
     setPeers((current) =>
       current.map((peer, peerIndex) =>
         peerIndex === index
           ? {
               ...peer,
-              [field]: field === "name" || field === "ticker" ? value : Number(value) || 0,
+              [field]:
+                field === "name" || field === "ticker"
+                  ? value
+                  : field === "included"
+                    ? value === "true"
+                    : Number(value) || 0,
             }
           : peer,
       ),
@@ -219,6 +316,7 @@ export default function Home() {
       ...current,
       {
         name: "New Peer",
+        included: true,
         ticker: "TICK",
         revenueGrowth: 8,
         ebitdaMargin: 25,
@@ -362,14 +460,6 @@ export default function Home() {
                 <input type="number" value={model.revenue} onChange={(event) => updateModel("revenue", event.target.value)} />
               </label>
               <label>
-                Revenue growth %
-                <input type="number" value={model.revenueGrowth} onChange={(event) => updateModel("revenueGrowth", event.target.value)} />
-              </label>
-              <label>
-                EBITDA margin %
-                <input type="number" value={model.ebitdaMargin} onChange={(event) => updateModel("ebitdaMargin", event.target.value)} />
-              </label>
-              <label>
                 D&A / revenue %
                 <input type="number" value={model.depreciationPercent} onChange={(event) => updateModel("depreciationPercent", event.target.value)} />
               </label>
@@ -401,6 +491,33 @@ export default function Home() {
                 Terminal growth %
                 <input type="number" value={model.terminalGrowth} onChange={(event) => updateModel("terminalGrowth", event.target.value)} />
               </label>
+              <label>
+                Exit multiple
+                <input type="number" value={model.exitMultiple} onChange={(event) => updateModel("exitMultiple", event.target.value)} />
+              </label>
+            </div>
+
+            <div className="forecast-table" role="table" aria-label="Yearly forecast assumptions">
+              <div className="forecast-row header" role="row">
+                <span>Year</span>
+                <span>Revenue growth %</span>
+                <span>EBITDA margin %</span>
+              </div>
+              {forecast.map((row, index) => (
+                <div className="forecast-row" key={row.year} role="row">
+                  <strong>Y{row.year}</strong>
+                  <input
+                    type="number"
+                    value={row.revenueGrowth}
+                    onChange={(event) => updateForecast(index, "revenueGrowth", event.target.value)}
+                  />
+                  <input
+                    type="number"
+                    value={row.ebitdaMargin}
+                    onChange={(event) => updateForecast(index, "ebitdaMargin", event.target.value)}
+                  />
+                </div>
+              ))}
             </div>
           </section>
           )}
@@ -412,6 +529,14 @@ export default function Home() {
               <h2>{formatMoney(dcf.enterpriseValue, company.currency)}</h2>
               <span>Enterprise value</span>
               <div className="valuation-list">
+                <div>
+                  <span>Gordon growth EV</span>
+                  <strong>{formatMoney(dcf.gordonEnterpriseValue, company.currency)}</strong>
+                </div>
+                <div>
+                  <span>Exit multiple EV</span>
+                  <strong>{formatMoney(dcf.exitEnterpriseValue, company.currency)}</strong>
+                </div>
                 <div>
                   <span>Equity value</span>
                   <strong>{formatMoney(dcf.equityValue, company.currency)}</strong>
@@ -474,16 +599,83 @@ export default function Home() {
                 <span />
               </div>
               {peers.map((peer, index) => (
-                <div className="peer-row" key={`${peer.ticker}-${index}`} role="row">
+                <div className={`peer-row ${peer.included ? "" : "excluded"}`} key={`${peer.ticker}-${index}`} role="row">
                   <input value={peer.name} onChange={(event) => updatePeer(index, "name", event.target.value)} />
                   <input value={peer.ticker} onChange={(event) => updatePeer(index, "ticker", event.target.value.toUpperCase())} />
                   <input type="number" value={peer.revenueGrowth} onChange={(event) => updatePeer(index, "revenueGrowth", event.target.value)} />
                   <input type="number" value={peer.ebitdaMargin} onChange={(event) => updatePeer(index, "ebitdaMargin", event.target.value)} />
                   <input type="number" value={peer.evRevenue} onChange={(event) => updatePeer(index, "evRevenue", event.target.value)} />
                   <input type="number" value={peer.evEbitda} onChange={(event) => updatePeer(index, "evEbitda", event.target.value)} />
+                  <button
+                    className={`include-button ${peer.included ? "active" : ""}`}
+                    onClick={() => updatePeer(index, "included", String(!peer.included))}
+                    type="button"
+                  >
+                    {peer.included ? "In" : "Out"}
+                  </button>
                   <button className="icon-button" onClick={() => removePeer(index)} type="button" aria-label={`Remove ${peer.name}`}>
                     ×
                   </button>
+                </div>
+              ))}
+            </div>
+          </section>
+          )}
+
+          {activeTab === "valuation" && (
+          <section className="panel workspace-panel">
+            <div className="section-heading horizontal">
+              <div>
+                <p className="eyebrow">Valuation Range</p>
+                <h2>Football field</h2>
+              </div>
+              <span>Implied share price range: {company.currency} {enterpriseToSharePrice(blendedLow, model).toFixed(2)} - {company.currency} {enterpriseToSharePrice(blendedHigh, model).toFixed(2)}</span>
+            </div>
+            <div className="football-field">
+              {valuationRows.map((row) => {
+                const left = Math.max((row.low / valuationScaleMax) * 100, 0);
+                const width = Math.max(((row.high - row.low) / valuationScaleMax) * 100, 3);
+
+                return (
+                  <div className="football-row" key={row.label}>
+                    <span>{row.label}</span>
+                    <div className="football-track">
+                      <div style={{ left: `${left}%`, width: `${width}%` }} />
+                    </div>
+                    <strong>
+                      {formatMoney(row.low, company.currency)} - {formatMoney(row.high, company.currency)}
+                    </strong>
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+          )}
+
+          {activeTab === "valuation" && (
+          <section className="panel workspace-panel">
+            <div className="section-heading horizontal">
+              <div>
+                <p className="eyebrow">Sensitivity</p>
+                <h2>WACC / terminal growth</h2>
+              </div>
+              <span>Implied share price</span>
+            </div>
+            <div className="sensitivity-table">
+              <div className="sensitivity-row header">
+                <span>WACC / g</span>
+                {terminalGrowthColumns.map((growth) => (
+                  <span key={growth}>{growth.toFixed(1)}%</span>
+                ))}
+              </div>
+              {sensitivityRows.map((row) => (
+                <div className="sensitivity-row" key={row.wacc}>
+                  <span>{row.wacc.toFixed(1)}%</span>
+                  {row.values.map((value, index) => (
+                    <strong key={`${row.wacc}-${index}`}>
+                      {company.currency} {value.toFixed(2)}
+                    </strong>
+                  ))}
                 </div>
               ))}
             </div>
@@ -502,6 +694,8 @@ export default function Home() {
             <div className="projection-grid">
               <div className="projection-row header">
                 <span>Year</span>
+                <span>Growth</span>
+                <span>Margin</span>
                 <span>Revenue</span>
                 <span>EBITDA</span>
                 <span>EBIT</span>
@@ -510,6 +704,8 @@ export default function Home() {
               {dcf.projection.map((row) => (
                 <div className="projection-row" key={row.year}>
                   <span>Y{row.year}</span>
+                  <strong>{row.revenueGrowth.toFixed(1)}%</strong>
+                  <strong>{row.ebitdaMargin.toFixed(1)}%</strong>
                   <strong>{formatMoney(row.revenue, company.currency)}</strong>
                   <strong>{formatMoney(row.ebitda, company.currency)}</strong>
                   <strong>{formatMoney(row.ebit, company.currency)}</strong>
@@ -529,11 +725,7 @@ export default function Home() {
                 {company.name} is a {company.region}-based {company.sector} company. Under the {scenario} case, revenue
                 is projected to reach {formatMoney(nextRevenue, company.currency)} next year, with EBITDA margin at
                 {" "}
-                {scenario === "upside"
-                  ? model.ebitdaMargin + 3
-                  : scenario === "downside"
-                    ? model.ebitdaMargin - 5
-                    : model.ebitdaMargin}
+                {dcf.projection[0]?.ebitdaMargin.toFixed(1)}
                 %. The blended valuation triangulates to {formatMoney(blendedEnterpriseValue, company.currency)} EV.
               </p>
               <div className="memo-columns">
@@ -554,6 +746,17 @@ export default function Home() {
                   </ul>
                 </div>
               </div>
+            </article>
+            <article className="panel deck-card">
+              <p className="eyebrow">Pitch Deck Outline</p>
+              <h2>IC-style slide flow</h2>
+              <ol>
+                <li>Company profile and transaction context</li>
+                <li>Financial model summary and key assumptions</li>
+                <li>Peer group and trading comps output</li>
+                <li>DCF, sensitivity and football field valuation</li>
+                <li>Investment thesis, risks and recommendation</li>
+              </ol>
             </article>
           </section>
           )}
