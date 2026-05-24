@@ -7,13 +7,13 @@
   --muted: #657083;
   --line: #d7dee8;
   --line-strong: #b9c4d3;
-  --accent: #0d6b5f;
-  --accent-dark: #084b43;
-  --accent-soft: #e4f3f0;
-  --blue: #245b9f;
-  --blue-soft: #edf4fb;
-  --amber: #9a5c00;
-  --amber-soft: #fff5df;
+  --accent: #0b1f3a;
+  --accent-dark: #071426;
+  --accent-soft: #edf2f8;
+  --blue: #2563eb;
+  --blue-soft: #eef4ff;
+  --amber: #b7791f;
+  --amber-soft: #fff7e6;
   --danger: #b42318;
   --danger-soft: #fff1f0;
   --shadow: 0 18px 46px rgba(24, 38, 56, 0.08);
@@ -26,8 +26,8 @@
 body {
   margin: 0;
   background:
-    linear-gradient(rgba(13, 107, 95, 0.05) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(36, 91, 159, 0.04) 1px, transparent 1px),
+    linear-gradient(rgba(11, 31, 58, 0.052) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(37, 99, 235, 0.04) 1px, transparent 1px),
     var(--background);
   background-size:
     44px 44px,
@@ -113,7 +113,7 @@ label {
   align-items: center;
   background: var(--accent);
   border-radius: 6px;
-  box-shadow: 0 0 0 4px rgba(13, 107, 95, 0.11);
+  box-shadow: 0 0 0 4px rgba(11, 31, 58, 0.11);
   color: #ffffff;
   display: inline-flex;
   font-size: 16px;
@@ -141,7 +141,7 @@ label {
 .hero-panel {
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.08), transparent 42%),
-    #10251f;
+    var(--accent-dark);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: 10px;
   box-shadow: var(--shadow);
@@ -181,7 +181,7 @@ label {
 }
 
 .hero-panel p {
-  color: #c0d2cd;
+  color: #c5d1df;
   line-height: 1.65;
   margin: 0;
   max-width: 760px;
@@ -197,7 +197,7 @@ label {
 }
 
 .hero-panel .eyebrow {
-  color: #7fd4c7;
+  color: #f1c36d;
 }
 
 .hero-metrics {
@@ -216,7 +216,7 @@ label {
 }
 
 .hero-metrics span {
-  color: #c0d2cd;
+  color: #c5d1df;
   font-size: 13px;
   font-weight: 700;
 }
@@ -253,6 +253,7 @@ label {
 .workflow-tabs button:hover,
 .workflow-tabs button.active {
   background: var(--accent-soft);
+  border-left: 3px solid var(--blue);
   color: var(--accent-dark);
   transform: none;
 }
@@ -368,7 +369,7 @@ label {
 .segmented-control button.active,
 .segmented-control button:hover {
   background: #ffffff;
-  color: var(--accent-dark);
+  color: var(--blue);
   transform: none;
 }
 
@@ -482,6 +483,10 @@ label {
   margin: 0;
 }
 
+.output-card {
+  border-top: 4px solid var(--blue);
+}
+
 .output-list {
   border-top: 1px solid var(--line);
   display: grid;
@@ -502,6 +507,10 @@ label {
 
 .output-list strong {
   font-size: 20px;
+}
+
+.output-list div:first-child strong {
+  color: var(--blue);
 }
 
 .next-actions ul {
@@ -532,6 +541,7 @@ label {
   background: var(--panel-soft);
   border: 1px solid var(--line);
   border-radius: 8px;
+  border-top: 3px solid var(--amber);
   display: grid;
   gap: 8px;
   padding: 14px;
