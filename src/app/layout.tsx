@@ -3,16 +3,21 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "DealDesk AI",
-  description: "Finance analyst workbench for modeling, valuation, peers, and investment memos",
+  description: "AI-powered valuation workbench — DCF, trading comps, and IC memos in one place.",
+  icons: {
+    icon: [
+      { url: "/icon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
-  children: React.ReactNode;
-}>) {
+}: Readonly<{ children: React.ReactNode }>) {
   return (
-    <html lang="en">
+    <html lang="en" data-theme="light">
       <body>{children}</body>
     </html>
   );
