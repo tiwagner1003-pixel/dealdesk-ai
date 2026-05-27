@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { Ico } from "./icons";
 import type { CaseTab } from "@/lib/types";
 
@@ -31,6 +32,13 @@ export function Chrome({
     <header className="chrome">
       <div className="chrome-top">
         <div className="brand">
+          <Link href="/" style={{ display: "flex", alignItems: "center", gap: 6, textDecoration: "none", color: "var(--muted)", marginRight: 4 }}>
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+              <path d="M9 2L4 7l5 5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+            <span style={{ fontSize: 13 }}>Home</span>
+          </Link>
+          <span className="brand-divider"></span>
           <span className="brand-mark">D</span>
           <span>DealDesk AI</span>
           <span className="brand-divider"></span>
