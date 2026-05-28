@@ -17,4 +17,8 @@ export const Ico = {
   paperclip: (p: IconProps) => (<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" {...p}><path d="m12 7-5 5a2.5 2.5 0 0 1-3.5-3.5l5.5-5.5a1.6 1.6 0 0 1 2.3 2.3L6.5 10.6a.8.8 0 0 1-1.1-1.1L10 5"/></svg>),
   check: (p: IconProps) => (<svg viewBox="0 0 16 16" width="12" height="12" fill="none" stroke="currentColor" strokeWidth="2" {...p}><path d="m3 8 3 3 7-7"/></svg>),
   trash: (p: IconProps) => (<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" {...p}><path d="M3 4.5h10M6 4.5V3a1 1 0 0 1 1-1h2a1 1 0 0 1 1 1v1.5M5 4.5v8.5a1 1 0 0 0 1 1h4a1 1 0 0 0 1-1V4.5"/></svg>),
+  refresh: (p: IconProps) => (<svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.5" {...p}><path d="M3 8a5 5 0 0 1 8.5-3.5L13 6M13 3v3h-3M13 8a5 5 0 0 1-8.5 3.5L3 10M3 13v-3h3"/></svg>),
 };
+
+// Aliased export — older imports may use `Icons` (e.g. Sidebar).
+export const Icons = Ico;

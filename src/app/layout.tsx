@@ -3,7 +3,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "DealDesk AI",
-  description: "AI-powered valuation workbench — DCF, trading comps, and IC memos in one place.",
+  description: "Finance analyst workbench for modeling, valuation, peers, and investment memos",
   icons: {
     icon: [
       { url: "/icon.svg", type: "image/svg+xml" },

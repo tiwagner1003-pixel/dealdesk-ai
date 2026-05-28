@@ -21,7 +21,6 @@ type Props = {
   medianEvEbitda: number;
   compsEvRevenue: number;
   compsEvEbitda: number;
-  onNext: () => void;
 };
 
 export function ValuationPanel({
@@ -29,7 +28,7 @@ export function ValuationPanel({
   sensRows, sensCols, baseRow, baseCol,
   projection, dcf,
   currentEbitda, medianEvRevenue, medianEvEbitda,
-  compsEvRevenue, compsEvEbitda, onNext,
+  compsEvRevenue, compsEvEbitda,
 }: Props) {
   return (
     <div style={{ display: "grid", gap: 16 }}>
@@ -130,16 +129,6 @@ export function ValuationPanel({
         </div>
         <FcfChart projection={projection} ccy={ccy}/>
       </section>
-
-      <div style={{ display: "flex", justifyContent: "flex-end", padding: "4px 0" }}>
-        <button className="btn primary" onClick={onNext} style={{ gap: 8 }}>
-          <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-            <circle cx="7" cy="7" r="6.5" fill="white" fillOpacity="0.2"/>
-            <path d="M5 7h4M7 5l2 2-2 2" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-          </svg>
-          Generate IC Memo →
-        </button>
-      </div>
     </div>
   );
 }

@@ -14,10 +14,9 @@ type Props = {
     evRevenue: number;
     evEbitda: number;
   };
-  onNext: () => void;
 };
 
-export function PeersPanel({ peers, onPeer, onAdd, onRemove, median, onNext }: Props) {
+export function PeersPanel({ peers, onPeer, onAdd, onRemove, median }: Props) {
   return (
     <section className="panel">
       <div className="panel-head">
@@ -89,11 +88,6 @@ export function PeersPanel({ peers, onPeer, onAdd, onRemove, median, onNext }: P
             </tr>
           </tbody>
         </table>
-      </div>
-      <div style={{ display: "flex", justifyContent: "flex-end", padding: "16px 0 4px" }}>
-        <button className="btn primary" onClick={onNext}>
-          Next: Valuation →
-        </button>
       </div>
     </section>
   );

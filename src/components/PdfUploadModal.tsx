@@ -1,41 +1,17 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { Ico } from "./icons";
-
-export type ExtractedPdfMetrics = {
-  fileName: string;
-  revenue: number;
-  ebitdaMargin: number;
-  netDebt: number;
-  shares: number;
-  capexPercent: number;
-  depreciationPercent: number;
-  taxRate: number;
-};
 
 type Props = {
   open: boolean;
   onClose: () => void;
-  onApply: (metrics: ExtractedPdfMetrics) => void;
+  onApply: () => void;
 };
 
 export function PdfUploadModal({ open, onClose, onApply }: Props) {
   const [stage, setStage] = useState<"idle" | "uploading" | "extracting" | "done">("idle");
   const [progress, setProgress] = useState(0);
-  const [fileName, setFileName] = useState("No file selected");
-  const inputRef = useRef<HTMLInputElement | null>(null);
-
-  const metrics: ExtractedPdfMetrics = {
-    fileName,
-    revenue: 1850,
-    ebitdaMargin: 47.2,
-    netDebt: -2300,
-    shares: 31,
-    capexPercent: 5.1,
-    depreciationPercent: 4,
-    taxRate: 25,
-  };
 
   useEffect(() => {
     if (stage === "uploading") {
@@ -53,14 +29,9 @@ export function PdfUploadModal({ open, onClose, onApply }: Props) {
     }
   }, [stage]);
 
-  function reset() { setStage("idle"); setProgress(0); setFileName("No file selected"); }
+  function reset() { setStage("idle"); setProgress(0); }
   function close() { reset(); onClose(); }
-  function apply() { onApply(metrics); reset(); onClose(); }
-  function startUpload(file?: File) {
-    setFileName(file?.name || "financial-filing.pdf");
-    setProgress(0);
-    setStage("uploading");
-  }
+  function apply() { onApply(); reset(); onClose(); }
 
   if (!open) return null;
 
@@ -78,33 +49,14 @@ export function PdfUploadModal({ open, onClose, onApply }: Props) {
         </div>
 
         <div className="modal-body">
-          <input
-            ref={inputRef}
-            type="file"
-            accept=".pdf"
-            style={{ display: "none" }}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) startUpload(file);
-              e.currentTarget.value = "";
-            }}
-          />
           {stage === "idle" && (
-            <div
-              className="drop-zone"
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={(e) => {
-                e.preventDefault();
-                const file = e.dataTransfer.files?.[0];
-                if (file) startUpload(file);
-              }}
-            >
+            <div className="drop-zone">
               <div className="ico"><Ico.upload/></div>
               <h4>Drop annual report or investor deck</h4>
               <p>PDF up to 50 MB · 10-K, 20-F, earnings transcript, investor presentation</p>
-              <button className="browse" onClick={() => inputRef.current?.click()}>Browse files</button>
+              <button className="browse" onClick={() => setStage("uploading")}>Browse files</button>
               <p style={{ marginTop: 16, fontSize: 11 }}>
-                Drag-and-drop and browse are enabled. URL import can be added once a backend fetcher exists.
+                Or paste a URL · supported: SEC EDGAR, Annual Reports, IR pages
               </p>
             </div>
           )}
@@ -114,10 +66,10 @@ export function PdfUploadModal({ open, onClose, onApply }: Props) {
               <div className="extract-row">
                 <div className="file-ico">PDF</div>
                 <div className="meta">
-                  <span className="name">{fileName}</span>
+                  <span className="name">adyen-q3-2025-results.pdf</span>
                   <span className="sub">
                     {stage === "uploading" && `Uploading · ${progress}%`}
-                    {stage === "extracting" && "Extracting financial data · local demo parser"}
+                    {stage === "extracting" && "Extracting financial data · Claude-ready parser"}
                     {stage === "done" && "Extraction complete · 12 metrics found"}
                   </span>
                   <div className="bar">
@@ -134,12 +86,12 @@ export function PdfUploadModal({ open, onClose, onApply }: Props) {
                     Extracted metrics — review and apply
                   </div>
                   {[
-                    ["Revenue (FY24A)", `${metrics.revenue.toLocaleString()}m`, "p. 14"],
-                    ["EBITDA margin", `${metrics.ebitdaMargin.toFixed(1)}%`, "p. 16"],
-                    ["Net debt", `${metrics.netDebt.toLocaleString()}m`, "p. 22"],
-                    ["Shares outstanding", `${metrics.shares.toFixed(1)}m`, "p. 87"],
-                    ["Capex / Revenue", `${metrics.capexPercent.toFixed(1)}%`, "p. 24"],
-                    ["Tax rate", `${metrics.taxRate.toFixed(1)}%`, "p. 31"],
+                    ["Revenue (FY24A)", "1,850 EURm", "p. 14"],
+                    ["EBITDA margin", "47.2%", "p. 16"],
+                    ["Net debt", "−2,300 EURm", "p. 22"],
+                    ["Shares outstanding", "31.0m", "p. 87"],
+                    ["Capex / Revenue", "5.1%", "p. 24"],
+                    ["Tax rate", "25.0%", "p. 31"],
                   ].map((row, i) => (
                     <div key={i} className="row">
                       <span className="check"><Ico.check/></span>

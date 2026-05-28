@@ -48,7 +48,7 @@ export type ForecastYear = {
 
 export type Scenario = "base" | "upside" | "downside";
 
-export type WorkspaceTab = "setup" | "model" | "peers" | "valuation" | "memo";
+export type WorkspaceTab = "setup" | "model" | "peers" | "valuation" | "lbo" | "memo";
 
 export type StepStatus = "done" | "active" | "warn" | "pending";
 
@@ -58,7 +58,7 @@ export type AiMemo = {
   thesis: string[];
   risks: string[];
   deckOutline: string[];
-  source: "claude" | "fallback";
+  source: "claude" | "openai" | "fallback";
 };
 
 export type MarketData = {

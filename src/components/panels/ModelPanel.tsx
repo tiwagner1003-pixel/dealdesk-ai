@@ -8,10 +8,9 @@ type Props = {
   onModel: (field: keyof ModelInput, value: string) => void;
   forecast: ForecastYear[];
   onForecast: (index: number, field: keyof ForecastYear, value: string) => void;
-  onNext: () => void;
 };
 
-export function ModelPanel({ company, model, onModel, forecast, onForecast, onNext }: Props) {
+export function ModelPanel({ company, model, onModel, forecast, onForecast }: Props) {
   const inputs: { k: keyof ModelInput; label: string; suffix: string }[] = [
     { k: "revenue",             label: "Revenue",         suffix: company.currency + "m" },
     { k: "depreciationPercent", label: "D&A / rev",       suffix: "%" },
@@ -99,11 +98,6 @@ export function ModelPanel({ company, model, onModel, forecast, onForecast, onNe
             </tbody>
           </table>
         </div>
-      </div>
-      <div style={{ display: "flex", justifyContent: "flex-end", padding: "16px 0 4px" }}>
-        <button className="btn primary" onClick={onNext}>
-          Next: Peers →
-        </button>
       </div>
     </section>
   );

@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Ico } from "./icons";
 import { OutputRail } from "./OutputRail";
 import { CoPilot } from "./CoPilot";
-import type { CompanyInput, ModelInput, ForecastYear, Peer } from "@/lib/types";
+import type { CompanyInput } from "@/lib/types";
 
 type Kpis = {
   sharePrice: number;
@@ -22,15 +22,10 @@ type Kpis = {
 type Props = {
   kpis: Kpis;
   company: CompanyInput;
-  model: ModelInput;
-  forecast: ForecastYear[];
-  peers: Peer[];
-  scenario: string;
-  activeTab: string;
   valuationRows: { label: string; low: number; high: number }[];
 };
 
-export function RightRail({ kpis, company, model, forecast, peers, scenario, activeTab, valuationRows }: Props) {
+export function RightRail({ kpis, company, valuationRows }: Props) {
   const [tab, setTab] = useState<"output" | "copilot">("copilot");
   return (
     <aside className="rail">
@@ -45,7 +40,7 @@ export function RightRail({ kpis, company, model, forecast, peers, scenario, act
       <div className="rail-body">
         {tab === "output"
           ? <OutputRail kpis={kpis} company={company} valuationRows={valuationRows}/>
-          : <CoPilot company={company} kpis={kpis} model={model} forecast={forecast} peers={peers} scenario={scenario} activeTab={activeTab}/>}
+          : <CoPilot company={company} kpis={kpis}/>}
       </div>
     </aside>
   );
