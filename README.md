@@ -87,7 +87,7 @@ FMP_API_KEY=your_fmp_key
 SEC_USER_AGENT="DealDesk AI contact@example.com"
 ```
 
-`/api/market-data` uses Twelve Data first, then FMP if configured, and finally a Yahoo Finance fallback so the demo still works without keys. Responses are cached for five minutes and the UI shows whether data is live or a fallback.
+`/api/market-data` uses Twelve Data first, then FMP if configured, then Stooq/Yahoo fallbacks so the demo still works without keys. Responses are cached for five minutes and the UI shows whether data is live or a fallback.
 
 ## Positioning
 

@@ -17,7 +17,7 @@ export type MarketDataResult = {
   dayHigh: number;
   dayLow: number;
   priceVs52wHigh: number;
-  source: "Twelve Data" | "FMP" | "Yahoo Finance";
+  source: "Twelve Data" | "FMP" | "Stooq" | "Yahoo Finance";
   status: "live" | "cached" | "fallback";
   fetchedAt: string;
 };
@@ -160,6 +160,65 @@ async function fetchFmpQuotes(symbols: string[]): Promise<Map<string, Quote>> {
   return quotes;
 }
 
+function toStooqSymbol(symbol: string) {
+  const upper = symbol.toUpperCase();
+  if (upper.endsWith(".AS")) return upper.replace(/\.AS$/, ".NL");
+  if (upper.endsWith(".PA")) return upper.replace(/\.PA$/, ".FR");
+  if (upper.endsWith(".L")) return upper.replace(/\.L$/, ".UK");
+  if (upper.endsWith(".CO")) return upper.replace(/-B\.CO$/, "B.DK").replace(/\.CO$/, ".DK");
+  if (upper.includes(".")) return upper;
+  return `${upper}.US`;
+}
+
+function fromCsvLine(line: string) {
+  const values: string[] = [];
+  let current = "";
+  let quoted = false;
+  for (const char of line) {
+    if (char === "\"") quoted = !quoted;
+    else if (char === "," && !quoted) {
+      values.push(current);
+      current = "";
+    } else {
+      current += char;
+    }
+  }
+  values.push(current);
+  return values;
+}
+
+async function fetchStooqQuote(symbol: string): Promise<Quote | null> {
+  const stooqSymbol = toStooqSymbol(symbol);
+  const url = `https://stooq.com/q/l/?s=${encodeURIComponent(stooqSymbol.toLowerCase())}&f=sd2t2ohlcv&h&e=csv`;
+  const res = await fetch(url, { next: { revalidate: CACHE_SECONDS } });
+  if (!res.ok) return null;
+
+  const text = await res.text();
+  const [, row] = text.trim().split(/\r?\n/);
+  if (!row || row.includes("N/D")) return null;
+
+  const [, , , openRaw, highRaw, lowRaw, closeRaw] = fromCsvLine(row);
+  const price = asNumber(closeRaw);
+  if (!price || price <= 0) return null;
+
+  return {
+    ticker: symbol,
+    name: symbol,
+    price,
+    previousClose: asNumber(openRaw),
+    currency: symbol.endsWith(".AS") || symbol.endsWith(".PA") || symbol.endsWith(".DE") ? "EUR"
+      : symbol.endsWith(".L") ? "GBP"
+      : symbol.endsWith(".CO") ? "DKK"
+      : "USD",
+    marketCap: null,
+    week52High: 0,
+    week52Low: 0,
+    dayHigh: asNumber(highRaw) || 0,
+    dayLow: asNumber(lowRaw) || 0,
+    source: "Stooq",
+  };
+}
+
 async function fetchYahooQuote(symbol: string): Promise<Quote | null> {
   const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
   const res = await fetch(url, {
@@ -220,14 +279,20 @@ export async function GET(request: NextRequest) {
     const missingAfterTwelve = symbols.filter((symbol) => !twelveQuotes.has(symbol));
     const fmpQuotes = await fetchFmpQuotes(missingAfterTwelve);
     const missingAfterFmp = missingAfterTwelve.filter((symbol) => !fmpQuotes.has(symbol));
-    const yahooQuotes = new Map<string, Quote>();
+    const stooqQuotes = new Map<string, Quote>();
     await Promise.all(missingAfterFmp.map(async (symbol) => {
+      const quote = await fetchStooqQuote(symbol);
+      if (quote) stooqQuotes.set(symbol, quote);
+    }));
+    const missingAfterStooq = missingAfterFmp.filter((symbol) => !stooqQuotes.has(symbol));
+    const yahooQuotes = new Map<string, Quote>();
+    await Promise.all(missingAfterStooq.map(async (symbol) => {
       const quote = await fetchYahooQuote(symbol);
       if (quote) yahooQuotes.set(symbol, quote);
     }));
 
     const results = symbols
-      .map((symbol) => twelveQuotes.get(symbol) || fmpQuotes.get(symbol) || yahooQuotes.get(symbol))
+      .map((symbol) => twelveQuotes.get(symbol) || fmpQuotes.get(symbol) || stooqQuotes.get(symbol) || yahooQuotes.get(symbol))
       .filter((quote): quote is Quote => Boolean(quote))
       .map((quote) => computeResult(quote, symbols.length === 1 ? modelParams : { shares: 0, netDebt: 0, revenue: 0, ebitda: 0 }));
 
