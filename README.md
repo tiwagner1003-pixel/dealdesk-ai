@@ -79,6 +79,16 @@ Build check:
 npm run build
 ```
 
+Optional market data keys in `.env.local`:
+
+```bash
+TWELVE_DATA_API_KEY=your_twelve_data_key
+FMP_API_KEY=your_fmp_key
+SEC_USER_AGENT="DealDesk AI contact@example.com"
+```
+
+`/api/market-data` uses Twelve Data first, then FMP if configured, and finally a Yahoo Finance fallback so the demo still works without keys. Responses are cached for five minutes and the UI shows whether data is live or a fallback.
+
 ## Positioning
 
 DealDesk AI is designed as a focused finance project, separate from Study AI.

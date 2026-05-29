@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Ico } from "./icons";
 import { MARKET_DB, priceSeries, type TickerInfo } from "@/lib/marketDb";
+import { marketSourceLabel, useMarketQuotes, type MarketAwareTicker } from "@/lib/useMarketData";
 
 /* ────────────────────────────────────────────────────────────────
    Sparkline
@@ -43,7 +44,7 @@ type Range = "1D" | "1M" | "1Y" | "5Y";
 
 export function PriceChart({ t, height = 240 }: { t: TickerInfo; height?: number }) {
   const [range, setRange] = useState<Range>("1Y");
-  const data = useMemo(() => priceSeries(t, range), [t.ticker, range]);
+  const data = useMemo(() => priceSeries(t, range), [t.ticker, t.price, range]);
   const ref = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ i: number; x: number; y: number; v: number } | null>(null);
 
@@ -151,7 +152,7 @@ export function PriceChart({ t, height = 240 }: { t: TickerInfo; height?: number
 /* ────────────────────────────────────────────────────────────────
    Market data card
    ──────────────────────────────────────────────────────────────── */
-export function MarketDataCard({ t }: { t: TickerInfo }) {
+export function MarketDataCard({ t }: { t: TickerInfo | MarketAwareTicker }) {
   if (t.priv) {
     return (
       <div className="market-card">
@@ -174,13 +175,14 @@ export function MarketDataCard({ t }: { t: TickerInfo }) {
   const chg = ((t.price - t.prevClose) / t.prevClose) * 100;
   const pos = chg >= 0;
   const ev = t.mktCap + t.netDebt;
+  const source = "marketSource" in t ? marketSourceLabel(t) : "Seed fallback";
 
   return (
     <div className="market-card">
       <div className="market-card-head">
         <div>
           <span className="eyebrow">Market data</span>
-          <span className="market-card-time">Live · refreshed via /api/market-data</span>
+          <span className="market-card-time">{source}</span>
         </div>
         <div className="pc-quote">
           <span className="num-display" style={{ fontSize: 22 }}>{t.price.toFixed(2)}</span>
@@ -235,12 +237,13 @@ export function TickerSearch({
       t.sector.toLowerCase().includes(s)
     ).slice(0, 10);
   }, [q]);
+  const { tickers: displayResults } = useMarketQuotes(open ? results : []);
 
   function onKey(e: React.KeyboardEvent) {
     if (e.key === "Escape") onClose();
-    else if (e.key === "ArrowDown") { e.preventDefault(); setActive((a) => Math.min(a + 1, results.length - 1)); }
+    else if (e.key === "ArrowDown") { e.preventDefault(); setActive((a) => Math.min(a + 1, displayResults.length - 1)); }
     else if (e.key === "ArrowUp") { e.preventDefault(); setActive((a) => Math.max(a - 1, 0)); }
-    else if (e.key === "Enter") { e.preventDefault(); if (results[active]) onPick(results[active]); }
+    else if (e.key === "Enter") { e.preventDefault(); if (displayResults[active]) onPick(displayResults[active]); }
   }
 
   if (!open) return null;
@@ -256,8 +259,8 @@ export function TickerSearch({
           <span className="ts-kbd">esc</span>
         </div>
         <div className="ts-list">
-          {results.length === 0 && <div className="ts-empty">No matches. Try a different ticker.</div>}
-          {results.map((t, i) => {
+          {displayResults.length === 0 && <div className="ts-empty">No matches. Try a different ticker.</div>}
+          {displayResults.map((t, i) => {
             const chg = t.price ? ((t.price - t.prevClose) / t.prevClose) * 100 : 0;
             return (
               <div key={t.ticker} className={"ts-row" + (i === active ? " active" : "")}

@@ -65,6 +65,7 @@ export type MarketData = {
   ticker: string;
   name: string;
   price: number;
+  previousClose: number | null;
   currency: string;
   marketCap: number | null;
   impliedEv: number | null;
@@ -75,6 +76,8 @@ export type MarketData = {
   dayHigh: number;
   dayLow: number;
   priceVs52wHigh: number;
+  source: "Twelve Data" | "FMP" | "Yahoo Finance" | "Seed";
+  status: "live" | "cached" | "fallback";
   fetchedAt: string;
 };
 

@@ -30,6 +30,7 @@ import { exportExcelModel } from "@/lib/exportExcel";
 import { exportPowerPointDeck } from "@/lib/exportPpt";
 import type { CompanyInput, ModelInput, ForecastYear, Peer, Scenario, WorkspaceTab, AiMemo, DcfOutput } from "@/lib/types";
 import { MARKET_DB, suggestPeers, findTicker, type TickerInfo } from "@/lib/marketDb";
+import { useMarketQuote } from "@/lib/useMarketData";
 import { SECTOR_TEMPLATES, type SectorTemplate } from "@/lib/templates";
 import { buildDemoUser, type AppUser } from "@/lib/user";
 
@@ -304,12 +305,18 @@ function Workspace({ cur, onPatch, onUpload, compareOn, setCompareOn }: {
   const evEbitdaLow = percentile(valuationPeers.map((p) => p.evEbitda), 0.25);
   const evEbitdaHigh = percentile(valuationPeers.map((p) => p.evEbitda), 0.75);
   const currentEbitda = model.revenue * pct(forecast[0]?.ebitdaMargin || 0);
+  const seedTicker = findTicker(company.ticker);
+  const { ticker: t, loading: marketLoading, error: marketError, refresh: refreshMarket } = useMarketQuote(seedTicker, {
+    shares: model.shares,
+    netDebt: model.netDebt,
+    revenue: model.revenue,
+    ebitda: currentEbitda,
+  });
   const compsRev = model.revenue * medRev;
   const compsEbitda = currentEbitda * medEbitda;
   const blendedEv = (dcf.enterpriseValue + compsRev + compsEbitda) / 3;
   const blendedEq = blendedEv - model.netDebt;
   const blendedSp = model.shares > 0 ? blendedEq / model.shares : 0;
-  const t = findTicker(company.ticker);
   const spot = t && !t.priv ? t.price : blendedSp * 0.88;
   const upside = spot > 0 ? ((blendedSp / spot) - 1) * 100 : 0;
   const dcfRange = [dcfD.enterpriseValue, dcfB.enterpriseValue, dcfU.enterpriseValue];
@@ -349,8 +356,8 @@ function Workspace({ cur, onPatch, onUpload, compareOn, setCompareOn }: {
   };
 
   function autoFillPeers() {
-    const t = findTicker(company.ticker); if (!t) return;
-    onPatch({ peers: suggestPeers(t, 6) });
+    const peerTicker = findTicker(company.ticker); if (!peerTicker) return;
+    onPatch({ peers: suggestPeers(peerTicker, 6) });
   }
 
   async function generateMemo() {
@@ -422,8 +429,15 @@ function Workspace({ cur, onPatch, onUpload, compareOn, setCompareOn }: {
                   <span className="eyebrow">Market context</span>
                   <h2>Live market data — {company.name}</h2>
                 </div>
-                <button className="btn"><Ico.refresh/> Refresh</button>
+                <button className="btn" onClick={refreshMarket} disabled={marketLoading}>
+                  <Ico.refresh/> {marketLoading ? "Refreshing" : "Refresh"}
+                </button>
               </div>
+              {marketError && (
+                <div className="panel-body" style={{ paddingBottom: 0 }}>
+                  <span className="head-aux">Using seed fallback: {marketError}</span>
+                </div>
+              )}
               <div className="panel-body" style={{ display: "grid", gap: 16 }}>
                 <MarketDataCard t={t}/>
                 <PriceChart t={t} height={260}/>

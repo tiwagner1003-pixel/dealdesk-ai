@@ -27,9 +27,9 @@ export type TickerInfo = {
  * Seed catalogue of ~40 companies used for ticker search, watchlist,
  * peer auto-fill and dashboard demos. Each row carries realistic stats.
  *
- * The Yahoo Finance /api/market-data route gives you LIVE prices on demand
- * — call it on case open to refresh the price/marketCap fields of the
- * matching row before rendering.
+ * The /api/market-data route gives you current prices on demand via
+ * configured free data providers. Merge those responses into these seed
+ * rows before rendering market-facing UI.
  */
 export const MARKET_DB: TickerInfo[] = [
   { ticker: "ADYEN.AS", name: "Adyen",        exchange: "AMS",  sector: "FinTech",   subSector: "Payments",      ccy: "EUR", price: 1462.40, prevClose: 1440.10, mktCap: 45300, netDebt: -2300, shares: 31,   revenue: 1850,  ebitda: 873,  pe: 38.2, evEbitda: 14.9, evRev: 7.5, beta: 1.42, divYield: 0,    range52w: [1080, 1610] },
@@ -75,7 +75,7 @@ export const MARKET_DB: TickerInfo[] = [
 
 /* ────────────────────────────────────────────────────────────────
    Seeded price series — stable per ticker (no live API needed)
-   For real live prices, hit /api/market-data and merge the result.
+   For current prices, hit /api/market-data and merge the result.
    ──────────────────────────────────────────────────────────────── */
 function seededRand(seed: number) {
   let s = seed;

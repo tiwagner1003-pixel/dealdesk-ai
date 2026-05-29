@@ -2,7 +2,8 @@
 import { useMemo } from "react";
 import { Ico } from "./icons";
 import { Sparkline } from "./Market";
-import { MARKET_DB, priceSeries, findTicker, type TickerInfo } from "@/lib/marketDb";
+import { priceSeries, findTicker, type TickerInfo } from "@/lib/marketDb";
+import { marketSourceLabel, useMarketQuotes } from "@/lib/useMarketData";
 import { SECTOR_TEMPLATES, type SectorTemplate } from "@/lib/templates";
 import type { AppUser } from "@/lib/user";
 
@@ -29,14 +30,15 @@ export function Dashboard({
   onOpenSearch: () => void;
   onOpenLibrary: () => void;
 }) {
-  const watched = useMemo(
+  const watchedSeeds = useMemo(
     () => watchlist.map((tk) => findTicker(tk)).filter((x): x is TickerInfo => Boolean(x)),
     [watchlist]
   );
+  const { tickers: watched, loading: marketLoading, error: marketError, refresh: refreshMarket } = useMarketQuotes(watchedSeeds);
 
   const sectorPerf = useMemo(() => {
     const map: Record<string, { sum: number; n: number; cap: number }> = {};
-    MARKET_DB.forEach((t) => {
+    watched.forEach((t) => {
       if (t.priv) return;
       if (!map[t.sector]) map[t.sector] = { sum: 0, n: 0, cap: 0 };
       const chg = ((t.price - t.prevClose) / t.prevClose) * 100;
@@ -47,7 +49,7 @@ export function Dashboard({
     return Object.entries(map)
       .map(([sector, v]) => ({ sector, avg: v.sum / v.n, cap: v.cap }))
       .sort((a, b) => b.cap - a.cap);
-  }, []);
+  }, [watched]);
 
   const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
   const upCount = watched.filter((t) => t.price > t.prevClose).length;
@@ -104,7 +106,10 @@ export function Dashboard({
             <h2>Watchlist</h2>
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-            <span className="head-aux">Refreshed via /api/market-data</span>
+            <span className="head-aux">
+              {marketError ? "Seed fallback" : marketLoading ? "Refreshing..." : watched[0] ? marketSourceLabel(watched[0]) : "No tickers"}
+            </span>
+            <button className="btn" onClick={refreshMarket}><Ico.refresh/> Refresh</button>
             <button className="btn" onClick={onOpenSearch}><Ico.plus/> Add ticker</button>
           </div>
         </div>
@@ -199,9 +204,9 @@ export function Dashboard({
           <div className="panel-head">
             <div className="head-title">
               <span className="eyebrow">Market overview</span>
-              <h2>Sector performance · today</h2>
+              <h2>Watchlist sectors · today</h2>
             </div>
-            <span className="head-aux">Cap-weighted · daily Δ</span>
+            <span className="head-aux">Source-aware · daily Δ</span>
           </div>
           <div className="sector-heatmap">
             {sectorPerf.map((s) => {
