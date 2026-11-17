@@ -43,7 +43,7 @@ function fallbackResult(filename: string): AnalysisResult {
     managementTone: "unknown",
     documentType: filename,
     confidence: "low",
-    rawNotes: "Add ANTHROPIC_API_KEY to .env.local to enable document analysis.",
+    rawNotes: "Document analysis needs an AI model, which is not connected on this deployment. Nothing was extracted.",
   };
 }
 

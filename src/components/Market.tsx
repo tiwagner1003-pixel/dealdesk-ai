@@ -175,7 +175,7 @@ export function MarketDataCard({ t }: { t: TickerInfo | MarketAwareTicker }) {
   const chg = ((t.price - t.prevClose) / t.prevClose) * 100;
   const pos = chg >= 0;
   const ev = t.mktCap + t.netDebt;
-  const source = "marketSource" in t ? marketSourceLabel(t) : "Seed fallback";
+  const source = "marketSource" in t ? marketSourceLabel(t) : "Sample prices";
 
   return (
     <div className="market-card">

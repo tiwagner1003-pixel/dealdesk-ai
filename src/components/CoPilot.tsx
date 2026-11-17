@@ -59,7 +59,12 @@ export function CoPilot({ company, kpis, model, forecast, peers, scenario, activ
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
   const feedRef = useRef<HTMLDivElement>(null);
-  const fileRef = useRef<HTMLInputElement | null>(null);
+  // null = noch unbekannt, false = kein Modell angebunden, nur Regelantworten
+  const [aiLive, setAiLive] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    fetch("/api/ai-chat").then((r) => r.json()).then((d) => setAiLive(Boolean(d.ai))).catch(() => setAiLive(false));
+  }, []);
 
   useEffect(() => {
     if (feedRef.current) feedRef.current.scrollTop = feedRef.current.scrollHeight;
@@ -103,7 +108,7 @@ export function CoPilot({ company, kpis, model, forecast, peers, scenario, activ
     } catch {
       setMessages((m) => [...m, {
         role: "assistant",
-        body: "Co-Pilot couldn't reach the model. Check that ANTHROPIC_API_KEY is set in .env.local.",
+        body: "Co-Pilot couldn't reach the server. Please try again.",
         citations: [],
       }]);
     } finally {
@@ -117,33 +122,16 @@ export function CoPilot({ company, kpis, model, forecast, peers, scenario, activ
 
   const stepHint = activeTab && STEP_HINT[activeTab] ? STEP_HINT[activeTab] : null;
 
-  function attachFile(file: File) {
-    setMessages((m) => [...m, {
-      role: "assistant",
-      body: `${file.name} noted. Connect a document extraction backend to analyse the content — for now it's logged as context.`,
-      citations: ["Attachment"],
-    }]);
-  }
 
   return (
     <div className="copilot">
-      <input
-        ref={fileRef}
-        type="file"
-        style={{ display: "none" }}
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) attachFile(file);
-          e.currentTarget.value = "";
-        }}
-      />
       <div className="copilot-feed" ref={feedRef}>
         {messages.map((m, i) => (
           <div key={i} className={"copilot-msg " + m.role}>
             <span className="who">
               {m.role === "user"
                 ? <>You</>
-                : <><Ico.sparkle/> Claude · Sonnet 4.6</>}
+                : aiLive === false ? <>Co-Pilot · rule-based</> : <><Ico.sparkle/> Co-Pilot · Claude</>}
             </span>
             <div className="body">
               {m.body}
@@ -196,9 +184,10 @@ export function CoPilot({ company, kpis, model, forecast, peers, scenario, activ
           <button className="send" onClick={() => send()}><Ico.send/></button>
         </div>
         <div className="actions">
-          <button onClick={() => fileRef.current?.click()}><Ico.paperclip/> Attach</button>
           <button onClick={() => setText((t) => `${t}${t ? " " : ""}@Memo `)}>@ Mention</button>
-          <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--muted)" }}>claude-sonnet-4-6</span>
+          <span style={{ marginLeft: "auto", fontSize: 11, color: "var(--muted)" }}>
+            {aiLive === false ? "No AI model connected · answers come from the model figures" : aiLive ? "Claude" : ""}
+          </span>
         </div>
       </div>
     </div>

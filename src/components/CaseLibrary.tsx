@@ -19,13 +19,14 @@ export type LibraryCase = {
 };
 
 export function CaseLibrary({
-  cases, onOpenCase, onNewCase, onDuplicateCase, onDeleteCase,
+  cases, onOpenCase, onNewCase, onDuplicateCase, onDeleteCase, onReset,
 }: {
   cases: LibraryCase[];
   onOpenCase: (id: string) => void;
   onNewCase: () => void;
   onDuplicateCase: (id: string) => void;
   onDeleteCase: (id: string) => void;
+  onReset: () => void;
 }) {
   const [view, setView] = useState<"table" | "cards">("table");
   const [scenarioF, setScenarioF] = useState("all");
@@ -61,7 +62,8 @@ export function CaseLibrary({
           </p>
         </div>
         <div style={{ display: "flex", gap: 8 }}>
-          <button className="btn"><Ico.download/> Export library</button>
+          <button className="btn" onClick={onReset} title="Restore the sample cases">Reset samples</button>
+          <button className="btn" onClick={() => exportCsv(filtered)}><Ico.download/> Export CSV</button>
           <button className="btn primary" onClick={onNewCase}><Ico.plus/> New case</button>
         </div>
       </section>
@@ -191,4 +193,22 @@ function Filter({ label, value, onChange, options }: {
       </select>
     </div>
   );
+}
+
+/** Die gefilterte Liste als CSV herunterladen — Semikolon, damit Excel in DE sie direkt öffnet. */
+function exportCsv(rows: LibraryCase[]) {
+  const head = ["Company", "Ticker", "Sector", "Currency", "Scenario", "Status", "Author", "Updated"];
+  const esc = (v: unknown) => {
+    const t = String(v ?? "");
+    return /[";\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t;
+  };
+  const lines = [head, ...rows.map((c) => [c.name, c.ticker, c.sector, c.ccy, c.scenario, c.status, c.author, c.updated])]
+    .map((r) => r.map(esc).join(";"));
+  const blob = new Blob(["\uFEFF" + lines.join("\r\n")], { type: "text/csv;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "dealdesk-cases.csv";
+  a.click();
+  URL.revokeObjectURL(url);
 }

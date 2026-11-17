@@ -35,7 +35,7 @@ function fallbackMemo(body: Record<string, unknown>): MemoResult {
 
   return {
     recommendation: "Diligence required",
-    summary: `${company.name || "The company"} screens as an investable opportunity at an implied blended share price of ${ccy} ${blendedShare}. The DCF and trading comps are broadly aligned, but the case remains sensitive to terminal value (${termShare}% of DCF EV), peer selection and the achievability of the Year 5 EBITDA margin target of ${year5Margin}%. Add ANTHROPIC_API_KEY to .env.local to generate a full Claude-powered IC memo.`,
+    summary: `The model implies a blended share price of ${ccy} ${blendedShare} for ${company.name || "the company"}. The result is sensitive to terminal value (${termShare}% of DCF EV), peer selection and whether the Year 5 EBITDA margin of ${year5Margin}% is achievable.`,
     thesis: [
       `Relevant sector exposure in ${company.sector || "the target sector"} with identifiable growth levers.`,
       `Peer median EV/EBITDA of ${evEbitda}x supports the blended valuation range.`,

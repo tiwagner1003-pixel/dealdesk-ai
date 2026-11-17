@@ -18,12 +18,13 @@ export type RecentCase = {
 };
 
 export function Dashboard({
-  user, recentCases, watchlist,
+  recentCases, watchlist, memoCount,
   onOpenCase, onNewCase, onOpenTicker, onOpenSearch, onOpenLibrary,
 }: {
   user: AppUser;
   recentCases: RecentCase[];
   watchlist: string[];                       // ticker[]
+  memoCount: number;
   onOpenCase: (id: string) => void;
   onNewCase: (ticker?: TickerInfo, template?: SectorTemplate) => void;
   onOpenTicker: (t: TickerInfo) => void;
@@ -53,6 +54,8 @@ export function Dashboard({
 
   const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
   const upCount = watched.filter((t) => t.price > t.prevClose).length;
+  const byStatus = (s: RecentCase["status"]) => recentCases.filter((c) => c.status === s).length;
+  const activeCases = recentCases.length - byStatus("Archived");
 
   return (
     <div className="dashboard">
@@ -60,7 +63,7 @@ export function Dashboard({
         <div>
           <span className="eyebrow">{today}</span>
           <h1>Welcome to DealDesk.</h1>
-          <p>You have <strong>{recentCases.length} open cases</strong> · {watched.length} tickers on your watchlist.</p>
+          <p>Value companies with DCF, trading comps and LBO in one place. Your cases stay in this browser — no account needed.</p>
         </div>
         <div className="dash-welcome-actions">
           <button className="btn" onClick={onOpenSearch}>
@@ -74,9 +77,9 @@ export function Dashboard({
 
       <section className="dash-kpis">
         <div className="dash-kpi">
-          <span className="eyebrow">Open cases</span>
-          <div className="dash-kpi-v"><span className="num-display">{recentCases.length}</span></div>
-          <span className="dash-kpi-sub">+2 this week</span>
+          <span className="eyebrow">Active cases</span>
+          <div className="dash-kpi-v"><span className="num-display">{activeCases}</span></div>
+          <span className="dash-kpi-sub">{byStatus("Draft")} draft · {byStatus("In review")} in review</span>
         </div>
         <div className="dash-kpi">
           <span className="eyebrow">Watchlist tickers</span>
@@ -88,14 +91,14 @@ export function Dashboard({
           </span>
         </div>
         <div className="dash-kpi">
-          <span className="eyebrow">Memo drafts</span>
-          <div className="dash-kpi-v"><span className="num-display">4</span></div>
-          <span className="dash-kpi-sub">1 awaiting review</span>
+          <span className="eyebrow">Memos generated</span>
+          <div className="dash-kpi-v"><span className="num-display">{memoCount}</span></div>
+          <span className="dash-kpi-sub">of {recentCases.length} cases</span>
         </div>
         <div className="dash-kpi">
-          <span className="eyebrow">Team activity (7d)</span>
-          <div className="dash-kpi-v"><span className="num-display">28</span></div>
-          <span className="dash-kpi-sub">edits across 6 cases</span>
+          <span className="eyebrow">Approved</span>
+          <div className="dash-kpi-v"><span className="num-display">{byStatus("Approved")}</span></div>
+          <span className="dash-kpi-sub">{byStatus("Archived")} archived</span>
         </div>
       </section>
 
@@ -107,7 +110,7 @@ export function Dashboard({
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <span className="head-aux">
-              {marketError ? "Seed fallback" : marketLoading ? "Refreshing..." : watched[0] ? marketSourceLabel(watched[0]) : "No tickers"}
+              {marketError ? "Sample prices · live feed unavailable" : marketLoading ? "Refreshing..." : watched[0] ? marketSourceLabel(watched[0]) : "No tickers"}
             </span>
             <button className="btn" onClick={refreshMarket}><Ico.refresh/> Refresh</button>
             <button className="btn" onClick={onOpenSearch}><Ico.plus/> Add ticker</button>
@@ -232,7 +235,7 @@ export function Dashboard({
       <section className="panel">
         <div className="panel-head">
           <div className="head-title">
-            <span className="eyebrow">Start faster</span>
+            <span className="eyebrow" id="templates">Start faster</span>
             <h2>Sector templates</h2>
           </div>
           <span className="head-aux">Pre-built DCF assumptions tuned per industry</span>
@@ -255,6 +258,12 @@ export function Dashboard({
           ))}
         </div>
       </section>
+
+      <footer className="dash-foot">
+        DealDesk is an educational prototype. Market prices come from public sources and may be
+        delayed or replaced by sample data; sample cases and their authors are fictional.
+        Nothing here is investment advice.
+      </footer>
     </div>
   );
 }

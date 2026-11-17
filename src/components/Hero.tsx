@@ -74,12 +74,6 @@ export function Hero({
             <Ico.download/>
             Excel model
           </button>
-          <span
-            className="ml-auto eyebrow muted"
-            style={{ fontFamily: "var(--font-mono)", textTransform: "none", letterSpacing: 0 }}
-          >
-            Last edit <span className="tabular">14:08 CET</span> by you
-          </span>
         </div>
       </div>
 
@@ -95,7 +89,7 @@ export function Hero({
               <span>vs spot <span className="tabular">{kpis.spot.toFixed(2)}</span></span>
               <span style={{ color: "var(--muted-soft)" }}>·</span>
               <span className={"delta " + (kpis.upside >= 0 ? "up" : "down")}>
-                {kpis.upside >= 0 ? "▲" : "▼"} {Math.abs(kpis.upside).toFixed(1)}% upside
+                {kpis.upside >= 0 ? "▲" : "▼"} {Math.abs(kpis.upside).toFixed(1)}% {kpis.upside >= 0 ? "upside" : "downside"}
               </span>
             </div>
           </div>

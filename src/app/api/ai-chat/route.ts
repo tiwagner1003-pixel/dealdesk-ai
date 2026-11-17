@@ -95,18 +95,23 @@ function fallbackReply(body: ChatBody): string {
   const ccy = company.currency;
 
   if (msg.includes("upside")) {
-    return `Under the upside scenario, the model lifts revenue growth ~2-3pp and EBITDA margin ~2pp versus base. At current WACC that pushes the DCF-implied share price roughly +15-20%. The blended EV lands around ${ccy} ${((kpis.ev * 1.18) / 1000).toFixed(1)}B — add ANTHROPIC_API_KEY to .env.local for live analysis.`;
+    return `Under the upside scenario, the model lifts revenue growth ~2-3pp and EBITDA margin ~2pp versus base. At current WACC that pushes the DCF-implied share price roughly +15-20%. The blended EV lands around ${ccy} ${((kpis.ev * 1.18) / 1000).toFixed(1)}B.`;
   }
   if (msg.includes("wacc") || msg.includes("sensit")) {
     return `At ±100bps on WACC, implied share price swings roughly ±8-12%. Terminal value currently represents ${kpis.terminal.toFixed(0)}% of DCF EV — that is the primary sensitivity lever. Check the Valuation tab heatmap for the full WACC × terminal growth matrix.`;
   }
   if (msg.includes("peer") || msg.includes("comp")) {
-    return `The peer median EV/EBITDA is ${kpis.evEbitda?.toFixed(1) ?? "n/a"}x and EV/Revenue ${kpis.evRevenue?.toFixed(1) ?? "n/a"}x. These comps anchor the trading range in the football field. Add ANTHROPIC_API_KEY for a deeper peer benchmarking analysis.`;
+    return `The peer median EV/EBITDA is ${kpis.evEbitda?.toFixed(1) ?? "n/a"}x and EV/Revenue ${kpis.evRevenue?.toFixed(1) ?? "n/a"}x. These comps anchor the trading range in the football field.`;
   }
   if (msg.includes("memo") || msg.includes("buy") || msg.includes("recommend")) {
-    return `Go to the Memo tab and hit "Generate AI memo" for a full IC-style structured memo covering thesis, risks and deck outline. Add ANTHROPIC_API_KEY to enable Claude-powered analysis.`;
+    return `Go to the Memo tab and hit "Generate AI memo" for a structured memo covering thesis, risks and deck outline.`;
   }
-  return `${company.name} blended EV: ${ccy} ${(kpis.ev / 1000).toFixed(1)}B → implied share price ${ccy} ${kpis.sharePrice.toFixed(2)}. Terminal value is ${kpis.terminal.toFixed(0)}% of DCF EV. Add ANTHROPIC_API_KEY to .env.local to enable Claude-powered analysis.`;
+  return `${company.name} blended EV: ${ccy} ${(kpis.ev / 1000).toFixed(1)}B → implied share price ${ccy} ${kpis.sharePrice.toFixed(2)}. Terminal value is ${kpis.terminal.toFixed(0)}% of DCF EV.`;
+}
+
+/** Sagt dem Co-Pilot, ob hinter ihm ein Modell steht oder nur die Regelantworten. */
+export async function GET() {
+  return NextResponse.json({ ai: Boolean(process.env.ANTHROPIC_API_KEY) });
 }
 
 export async function POST(request: NextRequest) {
@@ -120,7 +125,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (!process.env.ANTHROPIC_API_KEY) {
-      return NextResponse.json({ reply: fallbackReply(body), citations: ["Model", "Peers"] });
+      return NextResponse.json({ reply: fallbackReply(body), citations: ["Model", "Peers"], mode: "rules" });
     }
 
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });

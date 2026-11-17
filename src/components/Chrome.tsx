@@ -11,14 +11,15 @@ type Props = {
   onAdd: () => void;
   theme: string;
   onTheme: () => void;
-  onUpload: () => void;
+  onSearch: () => void;
+  saveState: "idle" | "saved" | "blocked";
   onCompare: () => void;
   compareOn: boolean;
 };
 
 export function Chrome({
   cases, activeCase, onActivate, onClose, onAdd,
-  theme, onTheme, onUpload, onCompare, compareOn,
+  theme, onTheme, onSearch, saveState, onCompare, compareOn,
 }: Props) {
   return (
     <header className="chrome">
@@ -26,32 +27,29 @@ export function Chrome({
         <div className="brand">
           <span className="brand-mark">D</span>
           <span>DealDesk AI</span>
-          <span className="brand-divider"></span>
-          <span className="brand-env">EU · Live</span>
         </div>
 
-        <div className="chrome-cmdk" role="button" tabIndex={0}>
+        <div className="chrome-cmdk" role="button" tabIndex={0} onClick={onSearch}
+             onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); onSearch(); } }}>
           <Ico.search className="chrome-cmdk-icon"/>
-          <span className="chrome-cmdk-text">Search company, ticker or memo…</span>
+          <span className="chrome-cmdk-text">Search company or ticker…</span>
           <span className="chrome-cmdk-kbd">⌘K</span>
         </div>
 
         <div className="chrome-actions">
-          <button className="chip-button" onClick={onUpload}>
-            <Ico.upload/>
-            Upload PDF
-          </button>
           <button className={"chip-button" + (compareOn ? " active" : "")} onClick={onCompare}>
             <Ico.compare/>
-            Compare cases
+            <span className="chip-label">Compare cases</span>
           </button>
-          <button className="chip-button">
-            <span className="dot"></span>
-            Saved · 2m ago
-          </button>
-          <button className="icon-btn" aria-label="Notifications">
-            <Ico.bell/>
-          </button>
+          {saveState !== "idle" && (
+            <span className={"chip-button save-state" + (saveState === "blocked" ? " blocked" : "")}
+                  title={saveState === "saved"
+                    ? "Your cases are stored in this browser only. Clearing site data removes them."
+                    : "This browser blocks local storage — changes are lost on reload."}>
+              <span className="dot"></span>
+              <span className="chip-label">{saveState === "saved" ? "Saved in this browser" : "Not saved"}</span>
+            </span>
+          )}
           <button className="icon-btn" aria-label="Theme" onClick={onTheme}>
             {theme === "dark" ? <Ico.sun/> : <Ico.moon/>}
           </button>

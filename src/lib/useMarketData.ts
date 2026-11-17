@@ -42,8 +42,8 @@ function mergeMarketData(ticker: TickerInfo, data?: MarketData): MarketAwareTick
 }
 
 export function marketSourceLabel(ticker: Pick<MarketAwareTicker, "marketSource" | "marketStatus" | "fetchedAt">) {
-  if (ticker.marketSource === "Seed") return "Seed fallback";
-  const mode = ticker.marketStatus === "live" ? "Live" : "Fallback";
+  if (ticker.marketSource === "Seed") return "Sample prices";
+  const mode = ticker.marketStatus === "live" ? "Live" : "Delayed";
   return `${mode} via ${ticker.marketSource}`;
 }
 

@@ -21,15 +21,12 @@ export function MemoPanel({
   company, scenario, dcf, terminalShare,
   blendedEv, blendedShare, aiMemo, onGenerate, generating, ccy,
 }: Props) {
-  const thesis = aiMemo?.thesis || [
-    "Single full-stack platform is a structural moat — competitors must rebuild rails and bank licenses across markets.",
-    "Enterprise-merchant mix and platform-payments TAM expansion compound revenue growth through the forecast.",
-    "Strong net-cash position funds buybacks or counter-cyclical M&A without dilution.",
+  // Ohne erzeugtes Memo keine erfundene These — nur, was aus dem Modell folgt.
+  const thesis = aiMemo?.thesis?.length ? aiMemo.thesis : [
+    "Generate the memo to draft an investment thesis from the model inputs.",
   ];
-  const risks = aiMemo?.risks || [
+  const risks = aiMemo?.risks?.length ? aiMemo.risks : [
     `Terminal value represents ${terminalShare.toFixed(0)}% of DCF enterprise value — outcome highly sensitive to WACC and exit-multiple assumptions.`,
-    "EU regulatory cycle (interchange caps, instant-payment scheme economics) could compress take-rate.",
-    "Stablecoin and alt-rail competition emerging in B2B cross-border flows.",
   ];
   const summary = aiMemo?.summary || `${company.name} (${company.ticker}) is a ${company.region}-based ${company.sector} platform. Under the ${scenario} case, the blended valuation triangulates to ${formatMoney(blendedEv, ccy)} enterprise value, implying ${ccy} ${blendedShare.toFixed(2)} per share against a ${dcf.sharePrice.toFixed(2)} DCF-only fair value. Terminal-value contribution remains the dominant valuation lever.`;
 
@@ -43,18 +40,21 @@ export function MemoPanel({
         <button className="btn primary" onClick={onGenerate} disabled={generating}>
           {generating
             ? <><span className="spin">⟳</span> Generating…</>
-            : <><Ico.sparkle/> Regenerate AI memo</>}
+            : <><Ico.sparkle/> {aiMemo ? "Regenerate memo" : "Generate memo"}</>}
         </button>
       </div>
       <div className="memo-headline">
         <div className="rec">
           <span className="pill">RECOMMENDATION</span>
-          <span>{aiMemo?.recommendation || "BUY · Outperform"}</span>
+          <span>{aiMemo?.recommendation || "Not generated yet"}</span>
           <span style={{ marginLeft: "auto", fontFamily: "var(--font-mono)", fontSize: 12 }}>
-            Target {ccy} {blendedShare.toFixed(2)}
+            Implied {ccy} {blendedShare.toFixed(2)}
           </span>
         </div>
         <p className="summary">{summary}</p>
+        {aiMemo?.source === "fallback" && (
+          <p className="memo-source">Rule-based draft from the model figures — no AI model is connected on this deployment.</p>
+        )}
       </div>
       <div className="memo-columns">
         <div className="col">

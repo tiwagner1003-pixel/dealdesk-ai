@@ -18,7 +18,6 @@ import { PeersPanel } from "./panels/PeersPanel";
 import { ValuationPanel } from "./panels/ValuationPanel";
 import { MemoPanel } from "./panels/MemoPanel";
 import { RightRail } from "./RightRail";
-import { PdfUploadModal } from "./PdfUploadModal";
 import { CaseCompare } from "./CaseCompare";
 import { Ico } from "./icons";
 
@@ -31,6 +30,7 @@ import { MARKET_DB, suggestPeers, findTicker, type TickerInfo } from "@/lib/mark
 import { useMarketQuote } from "@/lib/useMarketData";
 import { SECTOR_TEMPLATES, type SectorTemplate } from "@/lib/templates";
 import { GUEST_USER } from "@/lib/user";
+import { loadState, saveState, clearState } from "@/lib/persist";
 
 type View = "dashboard" | "library" | "workspace";
 
@@ -110,6 +110,10 @@ const SEED_CASES: CaseState[] = [
   seedCase("xom",     "XOM",      TPL_ENE,  "downside", "Approved",  "Tobias Reinhardt",  "May 10"),
 ];
 
+function stamp() {
+  return new Date().toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+}
+
 export function App() {
   // Konto-System ruht: Jeder landet direkt im Dashboard, ohne Anmeldung.
   const user = GUEST_USER;
@@ -118,12 +122,45 @@ export function App() {
   const [cases, setCases] = useState<CaseState[]>(SEED_CASES);
   const [activeCase, setActiveCase] = useState("adyen");
   const [openCases, setOpenCases] = useState<string[]>(["adyen", "stripe", "klarna"]);
-  const [pdfOpen, setPdfOpen] = useState(false);
+  // Speichern im Browser: erst nach dem Laden schreiben, sonst überschreiben
+  // die Beispielfälle beim ersten Rendern den gespeicherten Stand.
+  const [loaded, setLoaded] = useState(false);
+  const [saveState_, setSaveState] = useState<"idle" | "saved" | "blocked">("idle");
   const [compareOn, setCompareOn] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
   const [watchlist] = useState(["ADYEN.AS", "NVDA", "MSFT", "MC.PA", "ASML.AS", "WISE.L", "META", "NOVO-B.CO"]);
 
   useEffect(() => { document.documentElement.setAttribute("data-theme", theme); }, [theme]);
+
+  useEffect(() => {
+    const stored = loadState<CaseState>();
+    if (stored) {
+      setCases(stored.cases.map((c) => ({ ...c, generating: false })));
+      setOpenCases(stored.openCases);
+      setActiveCase(stored.activeCase);
+      setTheme(stored.theme);
+      setSaveState("saved");
+    }
+    setLoaded(true);
+  }, []);
+
+  useEffect(() => {
+    if (!loaded) return;
+    const id = setTimeout(() => {
+      const ok = saveState({ version: 1, cases, openCases, activeCase, theme });
+      setSaveState(ok ? "saved" : "blocked");
+    }, 400);
+    return () => clearTimeout(id);
+  }, [loaded, cases, openCases, activeCase, theme]);
+
+  function resetCases() {
+    if (!window.confirm("Discard all your cases and changes in this browser and restore the sample cases?")) return;
+    clearState();
+    setCases(SEED_CASES);
+    setOpenCases(["adyen", "stripe", "klarna"]);
+    setActiveCase("adyen");
+    setView("dashboard");
+  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -151,7 +188,7 @@ export function App() {
   function newCase(ticker?: TickerInfo, tpl?: SectorTemplate) {
     const id = "case-" + Date.now();
     const c = seedCase(id, ticker?.ticker ?? "ADYEN.AS", tpl ?? TPL_FIN, "base",
-                       "Draft", user.name, "Just now");
+                       "Draft", user.name, stamp());
     if (!ticker) c.company.name = "New case";
     setCases((cs) => [c, ...cs]);
     setOpenCases((o) => [...o, id]);
@@ -162,7 +199,7 @@ export function App() {
   function duplicateCase(id: string) {
     const src = cases.find((c) => c.id === id); if (!src) return;
     const newId = "case-" + Date.now();
-    setCases((cs) => [{ ...src, id: newId, status: "Draft", updated: "Just now", author: user.name }, ...cs]);
+    setCases((cs) => [{ ...src, id: newId, status: "Draft", updated: stamp(), author: user.name }, ...cs]);
   }
   function deleteCase(id: string) {
     setCases((cs) => cs.filter((c) => c.id !== id));
@@ -194,6 +231,10 @@ export function App() {
       <Sidebar
         view={view} setView={setView}
         onSearch={() => setSearchOpen(true)}
+        onTemplates={() => {
+          setView("dashboard");
+          setTimeout(() => document.getElementById("templates")?.scrollIntoView({ behavior: "smooth" }), 50);
+        }}
         onTheme={() => setTheme((t) => t === "dark" ? "light" : "dark")}
         theme={theme}
       />
@@ -210,7 +251,8 @@ export function App() {
           onAdd={() => newCase()}
           theme={theme}
           onTheme={() => setTheme((t) => t === "dark" ? "light" : "dark")}
-          onUpload={() => setPdfOpen(true)}
+          onSearch={() => setSearchOpen(true)}
+          saveState={saveState_}
           onCompare={() => setCompareOn((v) => !v)}
           compareOn={compareOn}
         />
@@ -219,6 +261,7 @@ export function App() {
           {view === "dashboard" && (
             <Dashboard
               user={user} recentCases={recent} watchlist={watchlist}
+              memoCount={cases.filter((c) => c.aiMemo).length}
               onOpenCase={openCase} onNewCase={newCase} onOpenTicker={(t) => newCase(t)}
               onOpenSearch={() => setSearchOpen(true)}
               onOpenLibrary={() => setView("library")}
@@ -226,13 +269,12 @@ export function App() {
           )}
           {view === "library" && (
             <CaseLibrary cases={libCases} onOpenCase={openCase} onNewCase={() => newCase()}
-              onDuplicateCase={duplicateCase} onDeleteCase={deleteCase}/>
+              onDuplicateCase={duplicateCase} onDeleteCase={deleteCase} onReset={resetCases}/>
           )}
           {view === "workspace" && cur && (
             <Workspace
               cur={cur}
               onPatch={(p) => patch(cur.id, p)}
-              onUpload={() => setPdfOpen(true)}
               compareOn={compareOn} setCompareOn={setCompareOn}
             />
           )}
@@ -247,8 +289,6 @@ export function App() {
         </div>
       </div>
 
-      <PdfUploadModal open={pdfOpen} onClose={() => setPdfOpen(false)}
-        onApply={() => cur && patch(cur.id, { model: { ...cur.model, revenue: 1850, depreciationPercent: 4, taxRate: 25 } })}/>
       <TickerSearch open={searchOpen} onClose={() => setSearchOpen(false)} onPick={pickTicker}/>
     </div>
   );
@@ -257,10 +297,9 @@ export function App() {
 /* ────────────────────────────────────────────────────────────────
    Workspace — uses existing panels + new market/LBO/Sens2D
    ──────────────────────────────────────────────────────────────── */
-function Workspace({ cur, onPatch, onUpload, compareOn, setCompareOn }: {
+function Workspace({ cur, onPatch, compareOn, setCompareOn }: {
   cur: CaseState;
   onPatch: (p: Partial<CaseState>) => void;
-  onUpload: () => void;
   compareOn: boolean;
   setCompareOn: (v: boolean) => void;
 }) {

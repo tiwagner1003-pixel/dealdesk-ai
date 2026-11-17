@@ -5,11 +5,12 @@ import { Icons } from "./icons";
 type View = "dashboard" | "library" | "workspace";
 
 export function Sidebar({
-  view, setView, onSearch, onAccount, onTheme, theme, initials,
+  view, setView, onSearch, onTemplates, onAccount, onTheme, theme, initials,
 }: {
   view: View;
   setView: (v: View) => void;
   onSearch: () => void;
+  onTemplates: () => void;
   onAccount?: () => void;   // Konto-System ruht — ohne Handler kein Kontoknopf
   onTheme: () => void;
   theme: "light" | "dark";
@@ -61,8 +62,7 @@ export function Sidebar({
         <div className="sidebar-divider"/>
 
         <SidebarBtn label="Search" onClick={onSearch} icon={<Icons.search/>}/>
-        <SidebarBtn label="Templates" icon={<Icons.sparkle/>}/>
-        <SidebarBtn label="Alerts" badge={3} icon={<Icons.bell/>}/>
+        <SidebarBtn label="Templates" onClick={onTemplates} icon={<Icons.sparkle/>}/>
       </nav>
 
       <div style={{ flex: 1 }}/>
