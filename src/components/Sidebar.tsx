@@ -10,10 +10,10 @@ export function Sidebar({
   view: View;
   setView: (v: View) => void;
   onSearch: () => void;
-  onAccount: () => void;
+  onAccount?: () => void;   // Konto-System ruht — ohne Handler kein Kontoknopf
   onTheme: () => void;
   theme: "light" | "dark";
-  initials: string;
+  initials?: string;
 }) {
   return (
     <aside className="sidebar">
@@ -71,9 +71,11 @@ export function Sidebar({
         <button className="sidebar-btn" onClick={onTheme} title="Toggle theme">
           {theme === "dark" ? <Icons.sun/> : <Icons.moon/>}
         </button>
-        <button className="sidebar-btn" onClick={onAccount} title="Account">
-          <div className="avatar" style={{ width: 26, height: 26 }}>{initials}</div>
-        </button>
+        {onAccount && (
+          <button className="sidebar-btn" onClick={onAccount} title="Account">
+            <div className="avatar" style={{ width: 26, height: 26 }}>{initials}</div>
+          </button>
+        )}
       </div>
     </aside>
   );

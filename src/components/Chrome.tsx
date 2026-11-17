@@ -55,7 +55,6 @@ export function Chrome({
           <button className="icon-btn" aria-label="Theme" onClick={onTheme}>
             {theme === "dark" ? <Ico.sun/> : <Ico.moon/>}
           </button>
-          <div className="avatar">LS</div>
         </div>
       </div>
 

@@ -2,11 +2,9 @@
 import { useEffect, useMemo, useState } from "react";
 
 import { Sidebar } from "./Sidebar";
-import { AuthScreen } from "./AuthScreen";
 import { Dashboard, type RecentCase } from "./Dashboard";
 import { CaseLibrary, type LibraryCase } from "./CaseLibrary";
 import { TickerSearch, MarketDataCard, PriceChart } from "./Market";
-import { AccountDrawer } from "./AccountDrawer";
 import { LboPanel } from "./LboPanel";
 import { Sens2DSlider } from "./Sens2DSlider";
 
@@ -32,7 +30,7 @@ import type { CompanyInput, ModelInput, ForecastYear, Peer, Scenario, WorkspaceT
 import { MARKET_DB, suggestPeers, findTicker, type TickerInfo } from "@/lib/marketDb";
 import { useMarketQuote } from "@/lib/useMarketData";
 import { SECTOR_TEMPLATES, type SectorTemplate } from "@/lib/templates";
-import { buildDemoUser, type AppUser } from "@/lib/user";
+import { GUEST_USER } from "@/lib/user";
 
 type View = "dashboard" | "library" | "workspace";
 
@@ -113,7 +111,8 @@ const SEED_CASES: CaseState[] = [
 ];
 
 export function App() {
-  const [user, setUser] = useState<AppUser | null>(null);
+  // Konto-System ruht: Jeder landet direkt im Dashboard, ohne Anmeldung.
+  const user = GUEST_USER;
   const [view, setView] = useState<View>("dashboard");
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [cases, setCases] = useState<CaseState[]>(SEED_CASES);
@@ -122,7 +121,6 @@ export function App() {
   const [pdfOpen, setPdfOpen] = useState(false);
   const [compareOn, setCompareOn] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
-  const [accountOpen, setAccountOpen] = useState(false);
   const [watchlist] = useState(["ADYEN.AS", "NVDA", "MSFT", "MC.PA", "ASML.AS", "WISE.L", "META", "NOVO-B.CO"]);
 
   useEffect(() => { document.documentElement.setAttribute("data-theme", theme); }, [theme]);
@@ -153,7 +151,7 @@ export function App() {
   function newCase(ticker?: TickerInfo, tpl?: SectorTemplate) {
     const id = "case-" + Date.now();
     const c = seedCase(id, ticker?.ticker ?? "ADYEN.AS", tpl ?? TPL_FIN, "base",
-                       "Draft", user?.name ?? "Luca Schmidt", "Just now");
+                       "Draft", user.name, "Just now");
     if (!ticker) c.company.name = "New case";
     setCases((cs) => [c, ...cs]);
     setOpenCases((o) => [...o, id]);
@@ -164,7 +162,7 @@ export function App() {
   function duplicateCase(id: string) {
     const src = cases.find((c) => c.id === id); if (!src) return;
     const newId = "case-" + Date.now();
-    setCases((cs) => [{ ...src, id: newId, status: "Draft", updated: "Just now", author: user?.name ?? "Luca Schmidt" }, ...cs]);
+    setCases((cs) => [{ ...src, id: newId, status: "Draft", updated: "Just now", author: user.name }, ...cs]);
   }
   function deleteCase(id: string) {
     setCases((cs) => cs.filter((c) => c.id !== id));
@@ -174,8 +172,6 @@ export function App() {
       if (left.length) setActiveCase(left[left.length - 1]); else setView("dashboard");
     }
   }
-
-  if (!user) return <AuthScreen onLogin={(u) => { setUser(u); setView("dashboard"); }}/>;
 
   // recent/library cases — derive from CaseState[]
   const libCases: LibraryCase[] = cases.map((c) => {
@@ -198,10 +194,8 @@ export function App() {
       <Sidebar
         view={view} setView={setView}
         onSearch={() => setSearchOpen(true)}
-        onAccount={() => setAccountOpen(true)}
         onTheme={() => setTheme((t) => t === "dark" ? "light" : "dark")}
         theme={theme}
-        initials={user.initials}
       />
 
       <div className="app-main">
@@ -256,8 +250,6 @@ export function App() {
       <PdfUploadModal open={pdfOpen} onClose={() => setPdfOpen(false)}
         onApply={() => cur && patch(cur.id, { model: { ...cur.model, revenue: 1850, depreciationPercent: 4, taxRate: 25 } })}/>
       <TickerSearch open={searchOpen} onClose={() => setSearchOpen(false)} onPick={pickTicker}/>
-      <AccountDrawer open={accountOpen} onClose={() => setAccountOpen(false)} user={user}
-        onLogout={() => { setUser(null); setAccountOpen(false); }}/>
     </div>
   );
 }

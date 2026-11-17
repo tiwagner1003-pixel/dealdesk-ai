@@ -59,8 +59,8 @@ export function Dashboard({
       <section className="dash-welcome">
         <div>
           <span className="eyebrow">{today}</span>
-          <h1>Good afternoon, {user.name.split(" ")[0]}.</h1>
-          <p>You have <strong>{recentCases.length} open cases</strong> · {watched.length} tickers on your watchlist · 2 unread comments from the team.</p>
+          <h1>Welcome to DealDesk.</h1>
+          <p>You have <strong>{recentCases.length} open cases</strong> · {watched.length} tickers on your watchlist.</p>
         </div>
         <div className="dash-welcome-actions">
           <button className="btn" onClick={onOpenSearch}>

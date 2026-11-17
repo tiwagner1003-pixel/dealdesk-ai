@@ -25,6 +25,16 @@ export function buildDemoUser(): AppUser {
   };
 }
 
+/** Konto-System ruht: fester Gastnutzer, keine Anmeldung, kein Profil. */
+export const GUEST_USER: AppUser = {
+  email: "",
+  name: "You",
+  role: "",
+  firm: "",
+  initials: "",
+  plan: "Free",
+};
+
 export function initialsOf(name: string) {
   return name.split(" ").map((s) => s[0]).slice(0, 2).join("").toUpperCase();
 }
