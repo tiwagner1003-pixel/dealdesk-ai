@@ -263,6 +263,9 @@ export function Dashboard({
         DealDesk is an educational prototype. Market prices come from public sources and may be
         delayed or replaced by sample data; sample cases and their authors are fictional.
         Nothing here is investment advice.
+        <span className="dash-foot-links">
+          <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a>
+        </span>
       </footer>
     </div>
   );
