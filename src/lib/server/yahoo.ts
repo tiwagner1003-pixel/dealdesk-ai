@@ -64,7 +64,7 @@ async function fetchChart(symbol: string, range: string, interval: string): Prom
     let res: Response;
     try {
       // Kein Fetch-Cache: der würde auch die 429-Antwort speichern.
-      res = await fetch(url, { headers: HEADERS, cache: "no-store" });
+      res = await fetch(url, { headers: HEADERS, cache: "no-store", signal: AbortSignal.timeout(6000) });
     } catch (err) {
       console.warn(`[yahoo] ${symbol} ${range} ${host} network error: ${err instanceof Error ? err.message : err}`);
       continue;

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { Rechtsseite } from "@/components/Rechtsseite";
 import { ANBIETER } from "@/data/anbieter";
+import { ChartFreigabeWiderruf } from "@/components/TradingViewChart";
 
 export const metadata: Metadata = {
   title: "Datenschutz · DealDesk",
@@ -30,8 +31,10 @@ export default function DatenschutzSeite() {
     >
       <section>
         <p className="legal-lead">
-          DealDesk braucht kein Konto, setzt keine Cookies und misst keine Reichweite.
-          Ihre Fälle bleiben in Ihrem Browser. Was beim Besuch trotzdem anfällt, steht hier.
+          DealDesk braucht kein Konto, setzt selbst keine Cookies und misst keine
+          Reichweite. Ihre Fälle bleiben in Ihrem Browser. Inhalte von fremden Servern
+          lädt die Seite nur, wenn Sie das ausdrücklich anklicken. Was beim Besuch
+          trotzdem anfällt, steht hier.
         </p>
       </section>
 
@@ -104,6 +107,43 @@ export default function DatenschutzSeite() {
         </p>
       </section>
 
+      <section id="tradingview">
+        <h2>Kurscharts von TradingView</h2>
+        <p>
+          Liefern diese Quellen keinen Kursverlauf, kann an seiner Stelle ein Chart von
+          TradingView eingeblendet werden. Er wird erst geladen, wenn Sie auf „Load
+          chart“ klicken. Vorher stellt Ihr Browser keine Verbindung zu TradingView her.
+        </p>
+        <p>
+          Nach dem Klick lädt Ihr Browser Programmcode und Kursdaten unmittelbar von
+          den Servern der TradingView Inc., 1330 Avenue of the Americas, 23rd Floor,
+          New York, NY 10019, Vereinigte Staaten. Dabei erhält TradingView Ihre
+          IP-Adresse, die Adresse dieser Seite sowie Angaben zu Browser und Gerät, und
+          TradingView kann Cookies oder ähnliche Techniken auf Ihrem Gerät einsetzen.
+          Was TradingView damit tut, verantwortet TradingView selbst; Einzelheiten in
+          der{" "}
+          <a href="https://www.tradingview.com/privacy-policy/">Datenschutzerklärung von TradingView</a>.
+        </p>
+        <p>
+          Rechtsgrundlage ist Ihre Einwilligung nach Artikel 6 Absatz 1 Buchstabe a
+          DSGVO und § 25 Absatz 1 TDDDG. Die Daten gehen in die Vereinigten Staaten.
+          TradingView nennt in seiner Datenschutzerklärung kein bestimmtes
+          Übermittlungsinstrument; die Übermittlung stützt sich deshalb auf Ihre
+          ausdrückliche Einwilligung nach Artikel 49 Absatz 1 Buchstabe a DSGVO. Das
+          bedeutet: Es ist nicht zugesichert, dass Ihre Daten dort so geschützt sind
+          wie in der Europäischen Union, und Behörden in den Vereinigten Staaten können
+          unter Umständen darauf zugreifen.
+        </p>
+        <p>
+          Setzen Sie beim Laden das Häkchen „Remember“, merkt sich Ihr Browser diese
+          Wahl im lokalen Speicher (Schlüssel <code>dealdesk:tradingview</code>), und
+          Charts werden bei späteren Besuchen ohne erneuten Klick geladen. Ohne das
+          Häkchen gilt die Freigabe nur für den einzelnen Chart. Widerrufen können Sie
+          die gespeicherte Wahl jederzeit mit Wirkung für die Zukunft:
+        </p>
+        <ChartFreigabeWiderruf/>
+      </section>
+
       <section>
         <h2>Co-Pilot, Memo und Dokumentanalyse</h2>
         {kiAktiv ? (
@@ -131,8 +171,9 @@ export default function DatenschutzSeite() {
         <h2>Was es nicht gibt</h2>
         <ul>
           <li>Keine Reichweitenmessung, keine Analysewerkzeuge, kein Tracking.</li>
-          <li>Keine Cookies.</li>
-          <li>Keine Schriften, Skripte oder Bilder von fremden Servern.</li>
+          <li>Keine eigenen Cookies.</li>
+          <li>Keine Schriften, Skripte oder Bilder von fremden Servern — außer dem
+            TradingView-Chart, und auch der nur nach Ihrem Klick.</li>
           <li>Kein Konto, kein Kontaktformular, kein Rundbrief.</li>
           <li>Keine Werbung und keine Weitergabe von Daten zu Werbezwecken.</li>
         </ul>

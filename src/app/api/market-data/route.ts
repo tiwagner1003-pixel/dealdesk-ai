@@ -44,6 +44,9 @@ type Quote = {
 };
 
 const CACHE_SECONDS = 300;
+// Jede fremde Quelle bekommt eine Frist. Ohne sie hing die Route, wenn Stooq
+// nicht antwortete, bis Vercel sie abbrach — und die Watchlist blieb leer.
+const ABRUF_MS = 6000;
 
 function asNumber(value: unknown): number | null {
   const n = Number(value);
@@ -116,7 +119,7 @@ async function fetchTwelveQuotes(symbols: string[]): Promise<Map<string, Quote>>
 
   const symbolParam = symbols.map(encodeURIComponent).join(",");
   const url = `https://api.twelvedata.com/quote?symbol=${symbolParam}&apikey=${encodeURIComponent(apiKey)}`;
-  const res = await fetch(url, { next: { revalidate: CACHE_SECONDS } });
+  const res = await fetch(url, { next: { revalidate: CACHE_SECONDS }, signal: AbortSignal.timeout(ABRUF_MS) });
   if (!res.ok) return quotes;
   const json = await res.json() as Record<string, unknown>;
 
@@ -157,7 +160,7 @@ async function fetchFmpQuotes(symbols: string[]): Promise<Map<string, Quote>> {
 
   const symbolPath = symbols.map(encodeURIComponent).join(",");
   const url = `https://financialmodelingprep.com/api/v3/quote/${symbolPath}?apikey=${encodeURIComponent(apiKey)}`;
-  const res = await fetch(url, { next: { revalidate: CACHE_SECONDS } });
+  const res = await fetch(url, { next: { revalidate: CACHE_SECONDS }, signal: AbortSignal.timeout(ABRUF_MS) });
   if (!res.ok) return quotes;
   const json = await res.json() as unknown;
   const rows = Array.isArray(json) ? json : [];
@@ -199,7 +202,7 @@ function fromCsvLine(line: string) {
 async function fetchStooqQuote(symbol: string): Promise<Quote | null> {
   const stooqSymbol = toStooqSymbol(symbol);
   const url = `https://stooq.com/q/l/?s=${encodeURIComponent(stooqSymbol.toLowerCase())}&f=sd2t2ohlcv&h&e=csv`;
-  const res = await fetch(url, { next: { revalidate: CACHE_SECONDS } });
+  const res = await fetch(url, { next: { revalidate: CACHE_SECONDS }, signal: AbortSignal.timeout(ABRUF_MS) });
   if (!res.ok) return null;
 
   const text = await res.text();

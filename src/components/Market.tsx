@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Ico } from "./icons";
+import { TradingViewChart } from "./TradingViewChart";
+import { tvSymbol } from "@/lib/tradingview";
 import { MARKET_DB, type TickerInfo } from "@/lib/marketDb";
 import { marketSourceLabel, useMarketQuotes, usePriceHistory, dayChange, formatAsOf, type MarketAwareTicker, type PriceRange } from "@/lib/useMarketData";
 
@@ -78,6 +80,10 @@ export function PriceChart({ t, height = 240 }: { t: TickerInfo | MarketAwareTic
   );
 
   if (!history || history.closes.length < 2) {
+    // Liefern die eigenen Quellen keinen Verlauf, springt TradingView ein —
+    // aber erst nach Freigabe, siehe TradingViewChart.
+    const symbol = tvSymbol(t);
+    if (failed && symbol) return <TradingViewChart symbol={symbol} name={t.name} height={height + 120}/>;
     return (
       <div className="price-chart">
         <div className="price-chart-head">
