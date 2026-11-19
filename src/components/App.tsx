@@ -466,7 +466,7 @@ function Workspace({ cur, onPatch, compareOn, setCompareOn }: {
               </div>
               {marketError && (
                 <div className="panel-body" style={{ paddingBottom: 0 }}>
-                  <span className="head-aux">Using seed fallback: {marketError}</span>
+                  <span className="head-aux">Sample prices — no live quote available right now.</span>
                 </div>
               )}
               <div className="panel-body" style={{ display: "grid", gap: 16 }}>

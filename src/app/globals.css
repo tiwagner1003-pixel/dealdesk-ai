@@ -3339,6 +3339,26 @@ svg { color: currentColor; }
   padding: 8px 0 0;
 }
 
+.pc-empty {
+  display: grid;
+  place-items: center;
+  background: var(--panel-soft);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--muted);
+  font-size: 12.5px;
+  font-family: var(--font-mono);
+  text-align: center;
+  padding: 0 16px;
+}
+.heat-empty {
+  grid-column: 1 / -1;
+  padding: 18px 20px;
+  color: var(--muted);
+  font-size: 12.5px;
+  background: var(--panel);
+}
+
 /* ========================================================================
    RESPONSIVE — muss am Ende stehen, sonst überschreiben die Grundregeln
    weiter unten die Medienabfragen wieder.

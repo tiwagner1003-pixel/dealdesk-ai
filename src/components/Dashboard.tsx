@@ -2,8 +2,8 @@
 import { useMemo } from "react";
 import { Ico } from "./icons";
 import { Sparkline } from "./Market";
-import { priceSeries, findTicker, type TickerInfo } from "@/lib/marketDb";
-import { marketSourceLabel, useMarketQuotes } from "@/lib/useMarketData";
+import { findTicker, type TickerInfo } from "@/lib/marketDb";
+import { marketSourceLabel, useMarketQuotes, dayChange } from "@/lib/useMarketData";
 import { SECTOR_TEMPLATES, type SectorTemplate } from "@/lib/templates";
 import type { AppUser } from "@/lib/user";
 
@@ -40,9 +40,9 @@ export function Dashboard({
   const sectorPerf = useMemo(() => {
     const map: Record<string, { sum: number; n: number; cap: number }> = {};
     watched.forEach((t) => {
-      if (t.priv) return;
+      const chg = dayChange(t);
+      if (t.priv || chg == null) return;   // nur echte Kurse — ein Tageswechsel aus dem Katalog wäre erfunden
       if (!map[t.sector]) map[t.sector] = { sum: 0, n: 0, cap: 0 };
-      const chg = ((t.price - t.prevClose) / t.prevClose) * 100;
       map[t.sector].sum += chg;
       map[t.sector].n += 1;
       map[t.sector].cap += t.mktCap;
@@ -53,7 +53,8 @@ export function Dashboard({
   }, [watched]);
 
   const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
-  const upCount = watched.filter((t) => t.price > t.prevClose).length;
+  const liveRows = watched.filter((t) => dayChange(t) != null);
+  const upCount = liveRows.filter((t) => (dayChange(t) ?? 0) > 0).length;
   const byStatus = (s: RecentCase["status"]) => recentCases.filter((c) => c.status === s).length;
   const activeCases = recentCases.length - byStatus("Archived");
 
@@ -85,9 +86,14 @@ export function Dashboard({
           <span className="eyebrow">Watchlist tickers</span>
           <div className="dash-kpi-v"><span className="num-display">{watched.length}</span></div>
           <span className="dash-kpi-sub">
-            <span style={{ color: "var(--green)" }}>{upCount} up</span>
-            {" · "}
-            <span style={{ color: "var(--red)" }}>{watched.length - upCount} down</span>
+            {liveRows.length ? (
+              <>
+                <span style={{ color: "var(--green)" }}>{upCount} up</span>
+                {" · "}
+                <span style={{ color: "var(--red)" }}>{liveRows.length - upCount} down</span>
+                {liveRows.length < watched.length && <> · {watched.length - liveRows.length} sample</>}
+              </>
+            ) : "sample prices only"}
           </span>
         </div>
         <div className="dash-kpi">
@@ -110,7 +116,10 @@ export function Dashboard({
           </div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             <span className="head-aux">
-              {marketError ? "Sample prices · live feed unavailable" : marketLoading ? "Refreshing..." : watched[0] ? marketSourceLabel(watched[0]) : "No tickers"}
+              {marketLoading ? "Refreshing…"
+                : marketError || liveRows.length === 0 ? "Sample prices · live feed unavailable"
+                : liveRows.length < watched.length ? `${liveRows.length} of ${watched.length} live · ${marketSourceLabel(liveRows[0])}`
+                : marketSourceLabel(liveRows[0])}
             </span>
             <button className="btn" onClick={refreshMarket}><Ico.refresh/> Refresh</button>
             <button className="btn" onClick={onOpenSearch}><Ico.plus/> Add ticker</button>
@@ -135,7 +144,7 @@ export function Dashboard({
             </thead>
             <tbody>
               {watched.map((t) => {
-                const chg = ((t.price - t.prevClose) / t.prevClose) * 100;
+                const chg = dayChange(t);
                 return (
                   <tr key={t.ticker} className="watchlist-row" onClick={() => onOpenTicker(t)}>
                     <td>
@@ -146,11 +155,15 @@ export function Dashboard({
                     </td>
                     <td>{t.name}</td>
                     <td><span className="tag" style={{ fontSize: 10.5, height: 18, padding: "0 6px" }}>{t.subSector}</span></td>
-                    <td>{t.price.toFixed(2)} <span className="muted" style={{ fontSize: 10 }}>{t.ccy}</span></td>
-                    <td><span className={"delta " + (chg >= 0 ? "up" : "down")}>{chg >= 0 ? "▲" : "▼"} {Math.abs(chg).toFixed(2)}%</span></td>
+                    <td title={marketSourceLabel(t)} className={t.live ? undefined : "muted"}>
+                      {t.price.toFixed(2)} <span className="muted" style={{ fontSize: 10 }}>{t.ccy}</span>
+                    </td>
+                    <td>{chg != null
+                      ? <span className={"delta " + (chg >= 0 ? "up" : "down")}>{chg >= 0 ? "▲" : "▼"} {Math.abs(chg).toFixed(2)}%</span>
+                      : <span className="muted" title="Sample price — no live quote">—</span>}</td>
                     <td style={{ padding: 0 }}>
                       <div style={{ display: "grid", placeItems: "center", padding: 6 }}>
-                        <Sparkline data={priceSeries(t, "1M")} positive={chg >= 0} w={80} h={22}/>
+                        <Sparkline data={t.history ?? []} positive={(t.history ? t.history[t.history.length - 1] >= t.history[0] : true)} w={80} h={22}/>
                       </div>
                     </td>
                     <td>{(t.mktCap / 1000).toFixed(1)}B</td>
@@ -209,9 +222,12 @@ export function Dashboard({
               <span className="eyebrow">Market overview</span>
               <h2>Watchlist sectors · today</h2>
             </div>
-            <span className="head-aux">Source-aware · daily Δ</span>
+            <span className="head-aux">Live quotes only · daily Δ</span>
           </div>
           <div className="sector-heatmap">
+            {sectorPerf.length === 0 && (
+              <div className="heat-empty">No live quotes right now — the sector view only uses real daily moves.</div>
+            )}
             {sectorPerf.map((s) => {
               const intensity = Math.min(Math.abs(s.avg) / 3, 1);
               const bg = s.avg >= 0

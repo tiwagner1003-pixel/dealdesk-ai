@@ -2,7 +2,8 @@
 import { useMemo, useState } from "react";
 import { Ico } from "./icons";
 import { Sparkline } from "./Market";
-import { findTicker, priceSeries } from "@/lib/marketDb";
+import { findTicker, type TickerInfo } from "@/lib/marketDb";
+import { useMarketQuotes } from "@/lib/useMarketData";
 
 export type LibraryCase = {
   id: string;
@@ -33,6 +34,13 @@ export function CaseLibrary({
   const [statusF, setStatusF] = useState("all");
   const [authorF, setAuthorF] = useState("all");
   const [search, setSearch] = useState("");
+
+  // Kursverläufe für die Kartenansicht — echte Daten, sonst keine Kurve.
+  const cardTickers = useMemo(() => view === "cards"
+    ? Array.from(new Set(cases.map((c) => c.ticker))).map((tk) => findTicker(tk)).filter((t): t is TickerInfo => Boolean(t && !t.priv))
+    : [], [cases, view]);
+  const { tickers: quoted } = useMarketQuotes(cardTickers);
+  const history = (tk: string) => quoted.find((q) => q.ticker === tk)?.history ?? null;
 
   const authors = useMemo(() => Array.from(new Set(cases.map((c) => c.author))), [cases]);
 
@@ -164,7 +172,10 @@ export function CaseLibrary({
                       {c.upside != null ? (c.upside >= 0 ? "+" : "") + c.upside.toFixed(0) + "%" : "—"}
                     </span></div>
                   </div>
-                  {t && !t.priv && <div className="lib-card-spark"><Sparkline data={priceSeries(t, "1M")} positive={positive} w={240} h={36}/></div>}
+                  {(() => {
+                    const h = t && !t.priv ? history(t.ticker) : null;
+                    return h ? <div className="lib-card-spark"><Sparkline data={h} positive={h[h.length - 1] >= h[0]} w={240} h={36}/></div> : null;
+                  })()}
                 </div>
                 <div className="lib-card-foot">
                   <span className="muted num" style={{ fontSize: 11 }}>{c.updated}</span>

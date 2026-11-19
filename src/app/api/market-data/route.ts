@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { yahooChart, mapLimited } from "@/lib/server/yahoo";
 
 export type MarketDataResult = {
   ticker: string;
@@ -20,6 +21,10 @@ export type MarketDataResult = {
   source: "Twelve Data" | "FMP" | "Stooq" | "Yahoo Finance";
   status: "live" | "cached" | "fallback";
   fetchedAt: string;
+  /** Tägliche Schlusskurse des letzten Monats, sofern die Quelle sie liefert. */
+  history: number[] | null;
+  /** Zeitpunkt des Kurses laut Quelle — bei einer Sperre kann er Stunden zurückliegen. */
+  asOf: string | null;
 };
 
 type Quote = {
@@ -34,6 +39,8 @@ type Quote = {
   dayHigh: number;
   dayLow: number;
   source: MarketDataResult["source"];
+  history?: number[];
+  asOf?: string | null;
 };
 
 const CACHE_SECONDS = 300;
@@ -77,6 +84,8 @@ function computeResult(quote: Quote, params: { shares: number; netDebt: number; 
     source: quote.source,
     status: quote.source === "Twelve Data" ? "live" : "fallback",
     fetchedAt: new Date().toISOString(),
+    history: quote.history && quote.history.length > 1 ? quote.history : null,
+    asOf: quote.asOf ?? null,
   };
 }
 
@@ -220,39 +229,25 @@ async function fetchStooqQuote(symbol: string): Promise<Quote | null> {
 }
 
 async function fetchYahooQuote(symbol: string): Promise<Quote | null> {
-  const url = `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}?interval=1d&range=1d`;
-  const res = await fetch(url, {
-    headers: {
-      "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36",
-      "Accept": "application/json",
-      "Referer": "https://finance.yahoo.com",
-    },
-    next: { revalidate: CACHE_SECONDS },
-  });
-
-  if (!res.ok) return null;
-  const json = await res.json() as Record<string, unknown>;
-  const chart = json?.chart as Record<string, unknown> | undefined;
-  const results = chart?.result as Record<string, unknown>[] | undefined;
-  const result = results?.[0];
-  const meta = result?.meta as Record<string, unknown> | undefined;
-  if (!meta) return null;
-
-  const price = asNumber(meta.regularMarketPrice);
-  if (!price || price <= 0) return null;
-
+  // Ein Monat Tageskurse: aktueller Kurs und Verlauf aus derselben Antwort.
+  const chart = await yahooChart(symbol, "1mo", "1d", 900);
+  if (!chart) return null;
+  // Vortagesschluss = vorletzter Tageskurs; der letzte ist der laufende Tag.
+  const prev = chart.closes.length >= 2 ? chart.closes[chart.closes.length - 2] : null;
   return {
     ticker: symbol,
-    name: String(meta.longName || meta.shortName || symbol),
-    price,
-    previousClose: asNumber(meta.previousClose ?? meta.chartPreviousClose),
-    currency: String(meta.currency || "USD"),
+    name: chart.name,
+    price: chart.price,
+    previousClose: prev,
+    currency: chart.currency,
     marketCap: null,
-    week52High: asNumber(meta.fiftyTwoWeekHigh) || 0,
-    week52Low: asNumber(meta.fiftyTwoWeekLow) || 0,
-    dayHigh: asNumber(meta.regularMarketDayHigh) || 0,
-    dayLow: asNumber(meta.regularMarketDayLow) || 0,
+    week52High: chart.week52High,
+    week52Low: chart.week52Low,
+    dayHigh: chart.dayHigh,
+    dayLow: chart.dayLow,
     source: "Yahoo Finance",
+    history: chart.closes,
+    asOf: chart.asOf,
   };
 }
 
@@ -279,20 +274,21 @@ export async function GET(request: NextRequest) {
     const missingAfterTwelve = symbols.filter((symbol) => !twelveQuotes.has(symbol));
     const fmpQuotes = await fetchFmpQuotes(missingAfterTwelve);
     const missingAfterFmp = missingAfterTwelve.filter((symbol) => !fmpQuotes.has(symbol));
-    const stooqQuotes = new Map<string, Quote>();
-    await Promise.all(missingAfterFmp.map(async (symbol) => {
-      const quote = await fetchStooqQuote(symbol);
-      if (quote) stooqQuotes.set(symbol, quote);
-    }));
-    const missingAfterStooq = missingAfterFmp.filter((symbol) => !stooqQuotes.has(symbol));
+    // Yahoo vor Stooq: Stooqs CSV-Schnittstelle antwortet seit Mitte 2026 nur noch mit 404.
     const yahooQuotes = new Map<string, Quote>();
-    await Promise.all(missingAfterStooq.map(async (symbol) => {
+    await mapLimited(missingAfterFmp, 3, async (symbol) => {
       const quote = await fetchYahooQuote(symbol);
       if (quote) yahooQuotes.set(symbol, quote);
+    });
+    const missingAfterYahoo = missingAfterFmp.filter((symbol) => !yahooQuotes.has(symbol));
+    const stooqQuotes = new Map<string, Quote>();
+    await Promise.all(missingAfterYahoo.map(async (symbol) => {
+      const quote = await fetchStooqQuote(symbol).catch(() => null);
+      if (quote) stooqQuotes.set(symbol, quote);
     }));
 
     const results = symbols
-      .map((symbol) => twelveQuotes.get(symbol) || fmpQuotes.get(symbol) || stooqQuotes.get(symbol) || yahooQuotes.get(symbol))
+      .map((symbol) => twelveQuotes.get(symbol) || fmpQuotes.get(symbol) || yahooQuotes.get(symbol) || stooqQuotes.get(symbol))
       .filter((quote): quote is Quote => Boolean(quote))
       .map((quote) => computeResult(quote, symbols.length === 1 ? modelParams : { shares: 0, netDebt: 0, revenue: 0, ebitda: 0 }));
 

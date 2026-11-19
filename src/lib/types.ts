@@ -78,6 +78,8 @@ export type MarketData = {
   priceVs52wHigh: number;
   source: "Twelve Data" | "FMP" | "Stooq" | "Yahoo Finance" | "Seed";
   status: "live" | "cached" | "fallback";
+  history?: number[] | null;
+  asOf?: string | null;
   fetchedAt: string;
 };
 

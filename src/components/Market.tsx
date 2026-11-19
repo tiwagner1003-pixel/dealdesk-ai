@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Ico } from "./icons";
-import { MARKET_DB, priceSeries, type TickerInfo } from "@/lib/marketDb";
-import { marketSourceLabel, useMarketQuotes, type MarketAwareTicker } from "@/lib/useMarketData";
+import { MARKET_DB, type TickerInfo } from "@/lib/marketDb";
+import { marketSourceLabel, useMarketQuotes, usePriceHistory, dayChange, formatAsOf, type MarketAwareTicker, type PriceRange } from "@/lib/useMarketData";
 
 /* ────────────────────────────────────────────────────────────────
    Sparkline
@@ -10,7 +10,7 @@ import { marketSourceLabel, useMarketQuotes, type MarketAwareTicker } from "@/li
 export function Sparkline({ data, w = 84, h = 24, positive }: {
   data: number[]; w?: number; h?: number; positive: boolean;
 }) {
-  if (!data || data.length === 0) return null;
+  if (!data || data.length < 2) return <span className="muted" title="No price history available">—</span>;
   const min = Math.min(...data);
   const max = Math.max(...data);
   const rng = max - min || 1;
@@ -40,13 +40,22 @@ export function Sparkline({ data, w = 84, h = 24, positive }: {
 /* ────────────────────────────────────────────────────────────────
    Big interactive price chart — TradingView-style
    ──────────────────────────────────────────────────────────────── */
-type Range = "1D" | "1M" | "1Y" | "5Y";
+type Range = PriceRange;
 
-export function PriceChart({ t, height = 240 }: { t: TickerInfo; height?: number }) {
+function axisLabel(ts: number, range: Range) {
+  const d = new Date(ts * 1000);
+  if (range === "1D") return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+  if (range === "1M") return d.toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  if (range === "1Y") return d.toLocaleDateString("en-GB", { month: "short", year: "2-digit" });
+  return String(d.getFullYear());
+}
+
+export function PriceChart({ t, height = 240 }: { t: TickerInfo | MarketAwareTicker; height?: number }) {
   const [range, setRange] = useState<Range>("1Y");
-  const data = useMemo(() => priceSeries(t, range), [t.ticker, t.price, range]);
+  const { data: history, loading, failed } = usePriceHistory(t.ticker, range, !t.priv);
   const ref = useRef<SVGSVGElement>(null);
   const [hover, setHover] = useState<{ i: number; x: number; y: number; v: number } | null>(null);
+  useEffect(() => setHover(null), [range, t.ticker]);
 
   if (t.priv) {
     return (
@@ -60,6 +69,35 @@ export function PriceChart({ t, height = 240 }: { t: TickerInfo; height?: number
     );
   }
 
+  const rangeButtons = (
+    <div className="pc-range">
+      {(["1D", "1M", "1Y", "5Y"] as Range[]).map((r) => (
+        <button key={r} className={range === r ? "active" : ""} onClick={() => setRange(r)}>{r}</button>
+      ))}
+    </div>
+  );
+
+  if (!history || history.closes.length < 2) {
+    return (
+      <div className="price-chart">
+        <div className="price-chart-head">
+          <div className="pc-price">
+            <span className="num-display" style={{ fontSize: 28 }}>{t.price.toFixed(2)}</span>
+            <span style={{ fontSize: 12, color: "var(--muted)", fontFamily: "var(--font-mono)", marginLeft: 8 }}>{t.ccy}</span>
+          </div>
+          {rangeButtons}
+        </div>
+        <div className="pc-empty" style={{ height }}>
+          {loading ? "Loading price history…"
+            : failed ? "No price history available — the data source is not answering right now."
+            : ""}
+        </div>
+      </div>
+    );
+  }
+
+  const data = history.closes;
+  const stamps = history.timestamps;
   const W = 800, H = height;
   const padL = 50, padR = 12, padT = 18, padB = 24;
   const min = Math.min(...data);
@@ -91,30 +129,27 @@ export function PriceChart({ t, height = 240 }: { t: TickerInfo; height?: number
     return { y, val };
   });
 
-  const xLabels = range === "1D" ? ["09:30", "11:00", "12:30", "14:00", "15:30"]
-    : range === "1M" ? ["W1", "W2", "W3", "W4"]
-    : range === "5Y" ? ["−5Y", "−4Y", "−3Y", "−2Y", "−1Y", "Now"]
-    : ["Jan", "Mar", "May", "Jul", "Sep", "Nov"];
+  // Achse aus den echten Zeitstempeln, fünf gleichmäßig verteilte Marken.
+  const xLabels = [0, 0.25, 0.5, 0.75, 1].map((p) => axisLabel(stamps[Math.round(p * (stamps.length - 1))], range));
 
   return (
     <div className="price-chart">
       <div className="price-chart-head">
         <div className="pc-price">
           <span className="num-display" style={{ fontSize: 28 }}>
-            {hover ? hover.v.toFixed(2) : t.price.toFixed(2)}
+            {hover ? hover.v.toFixed(2) : data[data.length - 1].toFixed(2)}
           </span>
           <span style={{ fontSize: 12, color: "var(--muted)", fontFamily: "var(--font-mono)", marginLeft: 8 }}>
-            {t.ccy}
+            {history.currency}
           </span>
           <span className={"delta " + (positive ? "up" : "down")} style={{ marginLeft: 12, fontSize: 13 }}>
-            {positive ? "▲" : "▼"} {Math.abs(change).toFixed(2)}%
+            {positive ? "▲" : "▼"} {Math.abs(change).toFixed(2)}% · {range}
+          </span>
+          <span style={{ fontSize: 11, color: "var(--muted)", fontFamily: "var(--font-mono)", marginLeft: 12 }}>
+            {hover ? axisLabel(stamps[hover.i], range === "1D" ? "1D" : "1M") : `Yahoo Finance · ${formatAsOf(history.asOf)}`}
           </span>
         </div>
-        <div className="pc-range">
-          {(["1D", "1M", "1Y", "5Y"] as Range[]).map((r) => (
-            <button key={r} className={range === r ? "active" : ""} onClick={() => setRange(r)}>{r}</button>
-          ))}
-        </div>
+        {rangeButtons}
       </div>
       <svg ref={ref} viewBox={`0 0 ${W} ${H}`} className="pc-svg" preserveAspectRatio="none"
            onMouseMove={onMove} onMouseLeave={() => setHover(null)}>
@@ -172,10 +207,11 @@ export function MarketDataCard({ t }: { t: TickerInfo | MarketAwareTicker }) {
     );
   }
 
-  const chg = ((t.price - t.prevClose) / t.prevClose) * 100;
-  const pos = chg >= 0;
+  const chg = "live" in t ? dayChange(t) : null;
+  const pos = (chg ?? 0) >= 0;
   const ev = t.mktCap + t.netDebt;
   const source = "marketSource" in t ? marketSourceLabel(t) : "Sample prices";
+  const fmt = (v: number) => v.toFixed(v >= 100 ? 0 : 2);
 
   return (
     <div className="market-card">
@@ -187,9 +223,11 @@ export function MarketDataCard({ t }: { t: TickerInfo | MarketAwareTicker }) {
         <div className="pc-quote">
           <span className="num-display" style={{ fontSize: 22 }}>{t.price.toFixed(2)}</span>
           <span style={{ fontSize: 11, color: "var(--muted)", fontFamily: "var(--font-mono)", marginLeft: 6 }}>{t.ccy}</span>
-          <span className={"delta " + (pos ? "up" : "down")} style={{ marginLeft: 10, fontSize: 12 }}>
-            {pos ? "▲" : "▼"} {Math.abs(chg).toFixed(2)}%
-          </span>
+          {chg != null && (
+            <span className={"delta " + (pos ? "up" : "down")} style={{ marginLeft: 10, fontSize: 12 }}>
+              {pos ? "▲" : "▼"} {Math.abs(chg).toFixed(2)}%
+            </span>
+          )}
         </div>
       </div>
       <div className="market-card-grid">
@@ -200,7 +238,7 @@ export function MarketDataCard({ t }: { t: TickerInfo | MarketAwareTicker }) {
         <div className="md"><span className="l">EV / Revenue</span><span className="v">{t.evRev.toFixed(1)}x</span></div>
         <div className="md"><span className="l">Beta (5Y)</span><span className="v">{t.beta.toFixed(2)}</span></div>
         <div className="md"><span className="l">Div yield</span><span className="v">{t.divYield > 0 ? t.divYield.toFixed(1) + "%" : "—"}</span></div>
-        <div className="md"><span className="l">52w range</span><span className="v" style={{ fontSize: 11.5 }}>{t.range52w[0]} – {t.range52w[1]}</span></div>
+        <div className="md"><span className="l">52w range</span><span className="v" style={{ fontSize: 11.5 }}>{fmt(t.range52w[0])} – {fmt(t.range52w[1])}</span></div>
       </div>
     </div>
   );
@@ -261,7 +299,7 @@ export function TickerSearch({
         <div className="ts-list">
           {displayResults.length === 0 && <div className="ts-empty">No matches. Try a different ticker.</div>}
           {displayResults.map((t, i) => {
-            const chg = t.price ? ((t.price - t.prevClose) / t.prevClose) * 100 : 0;
+            const chg = dayChange(t);
             return (
               <div key={t.ticker} className={"ts-row" + (i === active ? " active" : "")}
                    onMouseEnter={() => setActive(i)}
@@ -275,17 +313,17 @@ export function TickerSearch({
                   <span className="ts-name-sec">{t.sector} · {t.subSector}</span>
                 </div>
                 <div className="ts-spark">
-                  <Sparkline data={priceSeries(t, "1M")} positive={chg >= 0} w={68} h={20}/>
+                  <Sparkline data={t.history ?? []} positive={(chg ?? 0) >= 0} w={68} h={20}/>
                 </div>
                 <div className="ts-price">
                   {t.priv ? (
                     <span className="ts-priv">PRIV</span>
                   ) : (
                     <>
-                      <span className="ts-price-v">{t.price.toFixed(2)}</span>
-                      <span className={"delta " + (chg >= 0 ? "up" : "down")} style={{ fontSize: 11 }}>
-                        {chg >= 0 ? "+" : ""}{chg.toFixed(2)}%
-                      </span>
+                      <span className="ts-price-v" title={t.live ? marketSourceLabel(t) : "Sample price"}>{t.price.toFixed(2)}</span>
+                      {chg != null
+                        ? <span className={"delta " + (chg >= 0 ? "up" : "down")} style={{ fontSize: 11 }}>{chg >= 0 ? "+" : ""}{chg.toFixed(2)}%</span>
+                        : <span className="muted" style={{ fontSize: 11 }}>sample</span>}
                     </>
                   )}
                 </div>
