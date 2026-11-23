@@ -31,7 +31,7 @@ export function ValuationPanel({
   compsEvRevenue, compsEvEbitda,
 }: Props) {
   return (
-    <div style={{ display: "grid", gap: 16 }}>
+    <div style={{ display: "grid", gap: 16, gridTemplateColumns: "minmax(0, 1fr)" }}>
       <section className="panel">
         <div className="panel-head">
           <div className="head-title">

@@ -1,5 +1,5 @@
 "use client";
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Ico } from "./icons";
 import { Sparkline } from "./Market";
 import { findTicker, type TickerInfo } from "@/lib/marketDb";
@@ -52,7 +52,12 @@ export function Dashboard({
       .sort((a, b) => b.cap - a.cap);
   }, [watched]);
 
-  const today = new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" });
+  // Das Datum erst im Browser setzen: Die Seite wird beim Bauen vorgerendert, und
+  // ein dort eingesetztes Datum widerspräche am nächsten Tag dem im Browser.
+  const [today, setToday] = useState("");
+  useEffect(() => {
+    setToday(new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" }));
+  }, []);
   const liveRows = watched.filter((t) => dayChange(t) != null);
   const upCount = liveRows.filter((t) => (dayChange(t) ?? 0) > 0).length;
   const byStatus = (s: RecentCase["status"]) => recentCases.filter((c) => c.status === s).length;
@@ -62,7 +67,7 @@ export function Dashboard({
     <div className="dashboard">
       <section className="dash-welcome">
         <div>
-          <span className="eyebrow">{today}</span>
+          <span className="eyebrow">{today || "\u00a0"}</span>
           <h1>Welcome to DealDesk.</h1>
           <p>Value companies with DCF, trading comps and LBO in one place. Your cases stay in this browser — no account needed.</p>
         </div>

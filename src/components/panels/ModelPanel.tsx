@@ -33,7 +33,7 @@ export function ModelPanel({ company, model, onModel, forecast, onForecast }: Pr
         </div>
         <span className="head-aux">{company.currency}m unless stated</span>
       </div>
-      <div className="panel-body" style={{ display: "grid", gap: 18 }}>
+      <div className="panel-body" style={{ display: "grid", gap: 18, gridTemplateColumns: "minmax(0, 1fr)" }}>
         <div className="field-grid">
           {inputs.map((inp) => (
             <div className="field" key={inp.k}>

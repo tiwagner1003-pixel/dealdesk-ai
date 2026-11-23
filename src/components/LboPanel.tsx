@@ -30,7 +30,7 @@ export function LboPanel({ company }: { company: CompanyInput }) {
   ];
 
   return (
-    <div style={{ display: "grid", gap: 16 }}>
+    <div style={{ display: "grid", gap: 16, gridTemplateColumns: "minmax(0, 1fr)" }}>
       <section className="panel">
         <div className="panel-head">
           <div className="head-title">
@@ -56,7 +56,7 @@ export function LboPanel({ company }: { company: CompanyInput }) {
               <h2>Transaction assumptions</h2>
             </div>
           </div>
-          <div className="panel-body" style={{ display: "grid", gap: 14 }}>
+          <div className="panel-body" style={{ display: "grid", gap: 14, gridTemplateColumns: "minmax(0, 1fr)" }}>
             <Slider label="Entry EV" value={inp.entryEv} onChange={(v) => set("entryEv", v)} min={2000} max={120000} step={500}
                     format={(v) => (v / 1000).toFixed(1) + "B " + company.currency}/>
             <Slider label="Entry multiple" value={inp.entryMultiple} onChange={(v) => set("entryMultiple", v)} min={4} max={28} step={0.5} format={(v) => v.toFixed(1) + "x EBITDA"}/>

@@ -469,7 +469,7 @@ function Workspace({ cur, onPatch, compareOn, setCompareOn }: {
                   <span className="head-aux">Sample prices — no live quote available right now.</span>
                 </div>
               )}
-              <div className="panel-body" style={{ display: "grid", gap: 16 }}>
+              <div className="panel-body" style={{ display: "grid", gap: 16, gridTemplateColumns: "minmax(0, 1fr)" }}>
                 <MarketDataCard t={t}/>
                 <PriceChart t={t} height={260}/>
               </div>
