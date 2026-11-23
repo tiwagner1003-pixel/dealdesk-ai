@@ -9,6 +9,8 @@ type Kpis = {
   equity: number;
   dcfEv: number;
   compsEv: number;
+  /** false: keine Peers eingeschlossen, der Wert ruht allein auf dem DCF. */
+  hasComps?: boolean;
   terminal: number;
   evEbitda: number;
   evRevenue: number;
@@ -31,15 +33,15 @@ export function OutputRail({ kpis, company, valuationRows }: Props) {
             <span className="num-display">{kpis.sharePrice.toFixed(2)}</span>
             <span className="unit"> {company.currency}</span>
           </span>
-          <span className="l">Blended implied share price</span>
+          <span className="l">{kpis.hasComps === false ? "Implied share price (DCF only)" : "Blended implied share price"}</span>
         </div>
         <div className="rail-list">
-          <div className="row"><span className="k">Blended EV</span><span className="v">{formatMoney(kpis.ev, company.currency)}</span></div>
+          <div className="row"><span className="k">{kpis.hasComps === false ? "EV (DCF only)" : "Blended EV"}</span><span className="v">{formatMoney(kpis.ev, company.currency)}</span></div>
           <div className="row"><span className="k">Equity value</span><span className="v">{formatMoney(kpis.equity, company.currency)}</span></div>
           <div className="row"><span className="k">DCF EV</span><span className="v">{formatMoney(kpis.dcfEv, company.currency)}</span></div>
-          <div className="row"><span className="k">Comps EV (avg)</span><span className="v">{formatMoney(kpis.compsEv, company.currency)}</span></div>
-          <div className="row"><span className="k">EV / EBITDA</span><span className="v">{kpis.evEbitda.toFixed(1)}x</span></div>
-          <div className="row"><span className="k">EV / Revenue</span><span className="v">{kpis.evRevenue.toFixed(1)}x</span></div>
+          <div className="row"><span className="k">Comps EV (avg)</span><span className="v">{kpis.hasComps === false ? "n/a" : formatMoney(kpis.compsEv, company.currency)}</span></div>
+          <div className="row"><span className="k">EV / EBITDA</span><span className="v">{kpis.hasComps === false ? "n/a" : `${kpis.evEbitda.toFixed(1)}x`}</span></div>
+          <div className="row"><span className="k">EV / Revenue</span><span className="v">{kpis.hasComps === false ? "n/a" : `${kpis.evRevenue.toFixed(1)}x`}</span></div>
           <div className="row"><span className="k">Terminal share</span><span className="v">{kpis.terminal.toFixed(0)}%</span></div>
         </div>
       </div>

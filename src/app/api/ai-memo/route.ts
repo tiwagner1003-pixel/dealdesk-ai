@@ -38,7 +38,9 @@ function fallbackMemo(body: Record<string, unknown>): MemoResult {
     summary: `The model implies a blended share price of ${ccy} ${blendedShare} for ${company.name || "the company"}. The result is sensitive to terminal value (${termShare}% of DCF EV), peer selection and whether the Year 5 EBITDA margin of ${year5Margin}% is achievable.`,
     thesis: [
       `Relevant sector exposure in ${company.sector || "the target sector"} with identifiable growth levers.`,
-      `Peer median EV/EBITDA of ${evEbitda}x supports the blended valuation range.`,
+      outputs.medianEvEbitda
+        ? `Peer median EV/EBITDA of ${evEbitda}x supports the blended valuation range.`
+        : `No comparable peers are included; the valuation rests on the DCF alone and needs a peer cross-check.`,
       "DCF and comps within the same order of magnitude — triangulation is defensible.",
       "Transparent financial model with a clear bridge from revenue to free cash flow.",
     ],
@@ -104,7 +106,9 @@ Blended EV: ${ccy} ${((outputs.blendedEnterpriseValue || 0) / 1000).toFixed(1)}B
 Blended equity value: ${ccy} ${((outputs.blendedEquityValue || 0) / 1000).toFixed(1)}B
 Implied share price: ${ccy} ${(outputs.blendedSharePrice || 0).toFixed(2)}
 Terminal value share: ${(outputs.terminalShare || 0).toFixed(0)}%
-Peer median EV/Revenue: ${(outputs.medianEvRevenue || 0).toFixed(1)}x | EV/EBITDA: ${(outputs.medianEvEbitda || 0).toFixed(1)}x
+${outputs.medianEvEbitda
+  ? `Peer median EV/Revenue: ${(outputs.medianEvRevenue || 0).toFixed(1)}x | EV/EBITDA: ${outputs.medianEvEbitda.toFixed(1)}x`
+  : "Peer multiples: none — no comparable peers included, so the blended EV equals the DCF EV. Say so in the memo."}
 
 5-YEAR FORECAST:
 ${forecastSummary}

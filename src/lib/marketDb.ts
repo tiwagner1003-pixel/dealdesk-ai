@@ -32,7 +32,10 @@ export type TickerInfo = {
  * rows before rendering market-facing UI.
  */
 export const MARKET_DB: TickerInfo[] = [
-  { ticker: "ADYEN.AS", name: "Adyen",        exchange: "AMS",  sector: "FinTech",   subSector: "Payments",      ccy: "EUR", price: 1462.40, prevClose: 1440.10, mktCap: 45300, netDebt: -2300, shares: 31,   revenue: 1850,  ebitda: 873,  pe: 38.2, evEbitda: 14.9, evRev: 7.5, beta: 1.42, divYield: 0,    range52w: [1080, 1610] },
+  // Adyen, Stand 23.11.2026: Umsatz und EBITDA aus dem Geschäftsjahr 2025 (Netto-Umsatz 2.364,2 Mio. €,
+  // EBITDA 1.245,7 Mio. €, Ergebnis rund 1.063 Mio. €), Kurs und 52-Wochen-Spanne von Yahoo am selben Tag,
+  // rund 31,7 Mio. Aktien, operative Liquidität rund 4,6 Mrd. € (ohne Händlerguthaben).
+  { ticker: "ADYEN.AS", name: "Adyen",        exchange: "AMS",  sector: "FinTech",   subSector: "Payments",      ccy: "EUR", price: 821.80,  prevClose: 793.50,  mktCap: 26050, netDebt: -4600, shares: 31.7, revenue: 2364,  ebitda: 1246, pe: 24.5, evEbitda: 17.2, evRev: 9.1, beta: 1.42, divYield: 0,    range52w: [772.4, 1485] },
   { ticker: "PYPL",     name: "PayPal",       exchange: "NSDQ", sector: "FinTech",   subSector: "Payments",      ccy: "USD", price: 72.18,   prevClose: 71.84,   mktCap: 73200, netDebt: -2400, shares: 1014, revenue: 31200, ebitda: 7488, pe: 17.4, evEbitda: 9.8,  evRev: 2.4, beta: 1.31, divYield: 0,    range52w: [55.5, 88.2] },
   { ticker: "SQ",       name: "Block",        exchange: "NYSE", sector: "FinTech",   subSector: "Payments",      ccy: "USD", price: 92.45,   prevClose: 90.20,   mktCap: 56800, netDebt: 1100,  shares: 615,  revenue: 21800, ebitda: 3924, pe: 32.1, evEbitda: 12.6, evRev: 1.8, beta: 2.18, divYield: 0,    range52w: [54.2, 102.7] },
   { ticker: "WISE.L",   name: "Wise",         exchange: "LON",  sector: "FinTech",   subSector: "Payments",      ccy: "GBP", price: 1042.0,  prevClose: 1028.5,  mktCap: 10800, netDebt: -780,  shares: 1037, revenue: 1170,  ebitda: 374,  pe: 22.8, evEbitda: 19.4, evRev: 6.2, beta: 1.18, divYield: 0,    range52w: [612, 1098] },
@@ -108,9 +111,32 @@ export function priceSeries(t: TickerInfo, range: "1D" | "1M" | "1Y" | "5Y" = "1
 /* ────────────────────────────────────────────────────────────────
    Auto-fill peers from MARKET_DB by sector + size similarity
    ──────────────────────────────────────────────────────────────── */
+/**
+ * Branchen, die als Vergleich noch taugen, wenn die eigene zu dünn besetzt ist.
+ * Bewusst knapp: Ein Halbleiterhersteller ist kein Vergleich für Apple, eine Bank
+ * keiner für einen Ölkonzern.
+ */
+const NAHE_BRANCHEN: Record<string, string[]> = {
+  Luxury: ["Consumer"], Consumer: ["Luxury"],
+  Banks: ["AssetMgmt"], AssetMgmt: ["Banks"],
+  Semis: ["Hardware"], Hardware: ["Semis"],
+};
+
+/** Unter dieser Zahl ist ein Median kein Median — dann zählt nur der DCF. */
+export const MIN_PEERS = 2;
+
+/**
+ * Vergleichsunternehmen aus derselben oder einer nahen Branche. Bis zum
+ * 23.11.2026 füllte die Auswahl fehlende Branchenpeers mit beliebigen Firmen
+ * ähnlicher Größe auf — Exxon wurde an JPMorgan und SAP gemessen und landete bei
+ * +228 %. Lieber keine Comps als falsche: Reicht die Branche nicht für
+ * MIN_PEERS, stehen die Kandidaten in der Tabelle, zählen aber nicht.
+ */
 export function suggestPeers(t: TickerInfo | undefined, n = 5): Peer[] {
   if (!t) return [];
-  const candidates = MARKET_DB.filter((p) => p.ticker !== t.ticker && !p.priv);
+  const nah = NAHE_BRANCHEN[t.sector] ?? [];
+  const candidates = MARKET_DB.filter((p) =>
+    p.ticker !== t.ticker && !p.priv && (p.sector === t.sector || nah.includes(p.sector)));
   const scored = candidates.map((p) => {
     let score = 0;
     if (p.sector === t.sector) score += 10;
@@ -120,8 +146,10 @@ export function suggestPeers(t: TickerInfo | undefined, n = 5): Peer[] {
     return { ...p, score };
   });
   scored.sort((a, b) => b.score - a.score);
-  return scored.slice(0, n).map((p) => ({
-    included: true,
+  const auswahl = scored.slice(0, n);
+  const genug = auswahl.length >= MIN_PEERS;
+  return auswahl.map((p) => ({
+    included: genug,
     name: p.name,
     ticker: p.ticker,
     revenueGrowth: p.subSector.includes("AI") || p.subSector.includes("Data Cloud") ? 28 : p.subSector.includes("Payment") ? 11 : 8,

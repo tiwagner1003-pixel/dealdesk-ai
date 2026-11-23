@@ -27,6 +27,8 @@ type Ctx = {
   terminalGrowthColumns: number[];
   includedPeers: Peer[];
   aiMemo: AiMemo | null;
+  /** false: keine Peers eingeschlossen, der Wert ruht allein auf dem DCF. */
+  hasComps?: boolean;
 };
 
 export async function exportPowerPointDeck(ctx: Ctx) {
@@ -38,6 +40,9 @@ export async function exportPowerPointDeck(ctx: Ctx) {
     valuationRows, valuationScaleMax, sensitivityRows, terminalGrowthColumns,
     includedPeers, aiMemo,
   } = ctx;
+  const hasComps = ctx.hasComps ?? includedPeers.length > 0;
+  const blendLabel = hasComps ? "Blended" : "DCF-only";
+  const peerMult = (v: number) => hasComps ? formatMultiple(v) : "n/a";
 
   const pptxgen = (await import("pptxgenjs")).default;
   const pptx = new pptxgen();
@@ -84,7 +89,7 @@ export async function exportPowerPointDeck(ctx: Ctx) {
 
   const proj = dcf.projection;
   const compsAvgEv = (compsEvRevenue + compsEvEbitda) / 2;
-  const medRows = includedPeers.length > 0 ? includedPeers : peers;
+  const medRows = includedPeers;
 
   /* Slide 1: Title */
   const s1 = pptx.addSlide();
@@ -100,10 +105,10 @@ export async function exportPowerPointDeck(ctx: Ctx) {
   s1.addText("KEY METRICS", { x: 10.03, y: 1.02, w: 2.9, h: 0.24, fontSize: 8, bold: true, color: C.blue });
   const s1Metrics = [
     { label: "Implied Share Price", value: `${company.currency} ${blendedSharePrice.toFixed(2)}`, large: true },
-    { label: "Blended Equity Value", value: formatMoney(blendedEquityValue, company.currency), large: false },
-    { label: "Blended EV", value: formatMoney(blendedEnterpriseValue, company.currency), large: false },
+    { label: `${blendLabel} Equity Value`, value: formatMoney(blendedEquityValue, company.currency), large: false },
+    { label: `${blendLabel} EV`, value: formatMoney(blendedEnterpriseValue, company.currency), large: false },
     { label: "DCF EV", value: formatMoney(dcf.enterpriseValue, company.currency), large: false },
-    { label: "Peer EV/EBITDA (median)", value: formatMultiple(medianEvEbitda), large: false },
+    { label: "Peer EV/EBITDA (median)", value: peerMult(medianEvEbitda), large: false },
   ];
   s1Metrics.forEach((m, i) => {
     const y = 1.42 + i * 0.9;
@@ -119,16 +124,16 @@ export async function exportPowerPointDeck(ctx: Ctx) {
   s2.background = { color: "FAFBFC" };
   frame(s2, 2); eyebrow(s2, "EXECUTIVE SUMMARY");
   heading(s2, `${company.name} — ${scenario.charAt(0).toUpperCase() + scenario.slice(1)} Case`);
-  kpiBox(s2, 0.28, 1.02, 3.12, 1.0, "Blended Enterprise Value", formatMoney(blendedEnterpriseValue, company.currency), true);
-  kpiBox(s2, 3.55, 1.02, 3.12, 1.0, "Blended Equity Value", formatMoney(blendedEquityValue, company.currency));
+  kpiBox(s2, 0.28, 1.02, 3.12, 1.0, `${blendLabel} Enterprise Value`, formatMoney(blendedEnterpriseValue, company.currency), true);
+  kpiBox(s2, 3.55, 1.02, 3.12, 1.0, `${blendLabel} Equity Value`, formatMoney(blendedEquityValue, company.currency));
   kpiBox(s2, 6.82, 1.02, 3.12, 1.0, "Implied Share Price", `${company.currency} ${blendedSharePrice.toFixed(2)}`);
-  kpiBox(s2, 10.09, 1.02, 3.12, 1.0, "Peer Median EV/EBITDA", formatMultiple(medianEvEbitda));
+  kpiBox(s2, 10.09, 1.02, 3.12, 1.0, "Peer Median EV/EBITDA", peerMult(medianEvEbitda));
   if (aiMemo?.recommendation) {
     s2.addShape(pptx.ShapeType.rect, { x: 0.28, y: 2.18, w: 3.5, h: 0.4, fill: { color: C.goldSoft }, line: { color: "F1D39A" } });
     s2.addText("RECOMMENDATION", { x: 0.42, y: 2.22, w: 1.55, h: 0.32, fontSize: 8, bold: true, color: C.muted });
     s2.addText(aiMemo.recommendation, { x: 2.05, y: 2.22, w: 1.65, h: 0.32, fontSize: 10, bold: true, color: C.gold, align: "right" });
   }
-  const sumText = aiMemo?.summary || `${company.name} is a ${company.region}-based ${company.sector} company. Under the ${scenario} case, the blended valuation triangulates to ${formatMoney(blendedEnterpriseValue, company.currency)} enterprise value, implying ${company.currency} ${blendedSharePrice.toFixed(2)} per share.`;
+  const sumText = aiMemo?.summary || `${company.name} is a ${company.region}-based ${company.sector} company. Under the ${scenario} case, ${hasComps ? "the blended valuation triangulates to" : "the DCF alone (no comparable peers included) points to"} ${formatMoney(blendedEnterpriseValue, company.currency)} enterprise value, implying ${company.currency} ${blendedSharePrice.toFixed(2)} per share.`;
   s2.addText(sumText, { x: 0.28, y: 2.72, w: 12.85, h: 0.68, fontSize: 10, color: C.muted, valign: "top", fit: "shrink" });
   const s2Thesis = aiMemo?.thesis || [`Attractive sector exposure in ${company.sector}.`, "Model implies scalable EBITDA profile across the forecast period.", "Peer group multiple-based cross-check supports valuation range."];
   const s2Risks = aiMemo?.risks || [`Terminal value is ${terminalShare.toFixed(0)}% of DCF enterprise value.`, "Growth and margin assumptions drive most of the upside case.", "Peer multiple comparability requires business model validation."];
@@ -182,7 +187,7 @@ export async function exportPowerPointDeck(ctx: Ctx) {
     const y = 1.18 + i * 1.35;
     const barLeft = trackX + (row.low / valuationScaleMax) * trackW;
     const barWidth = Math.max(((row.high - row.low) / valuationScaleMax) * trackW, 0.3);
-    const isBlended = i === 3;
+    const isBlended = i === valuationRows.length - 1;
     s4.addText(row.label.toUpperCase(), { x: 0.25, y: y + 0.05, w: 3.1, h: 0.28, fontSize: 8.5, bold: true, color: isBlended ? C.navy : C.muted, align: "right" });
     s4.addShape(pptx.ShapeType.rect, { x: trackX, y: y + 0.13, w: trackW, h: 0.22, fill: { color: C.panel }, line: { color: C.line } });
     s4.addShape(pptx.ShapeType.rect, { x: barLeft, y: y + 0.06, w: barWidth, h: 0.36, fill: { color: barColors[i] }, line: { color: barColors[i] } });
@@ -224,15 +229,19 @@ export async function exportPowerPointDeck(ctx: Ctx) {
       pjCell("Median (included)", { bold: true, color: C.white, fill: { color: C.blue }, align: "left" }),
       pjCell("", { fill: { color: C.blue } }),
       pjCell("", { fill: { color: C.blue } }),
-      pjCell(`${median(medRows.map((p) => p.revenueGrowth)).toFixed(1)}%`, { bold: true, color: C.white, fill: { color: C.blue }, align: "center" }),
-      pjCell(`${median(medRows.map((p) => p.ebitdaMargin)).toFixed(1)}%`, { bold: true, color: C.white, fill: { color: C.blue }, align: "center" }),
-      pjCell(`${medianEvRevenue.toFixed(1)}x`, { bold: true, color: C.white, fill: { color: C.blue }, align: "center" }),
-      pjCell(`${medianEvEbitda.toFixed(1)}x`, { bold: true, color: C.white, fill: { color: C.blue }, align: "center" }),
+      ...(hasComps ? [
+        `${median(medRows.map((p) => p.revenueGrowth)).toFixed(1)}%`,
+        `${median(medRows.map((p) => p.ebitdaMargin)).toFixed(1)}%`,
+        `${medianEvRevenue.toFixed(1)}x`,
+        `${medianEvEbitda.toFixed(1)}x`,
+      ] : ["n/a", "n/a", "n/a", "n/a"]).map((v) => pjCell(v, { bold: true, color: C.white, fill: { color: C.blue }, align: "center" })),
     ],
   ];
   s5.addTable(compTable as any, { x: 0.28, y: 1.0, w: 13.0, rowH: 0.44, fontSize: 10, border: { type: "solid", color: C.line, pt: 0.5 }, margin: [0.04, 0.12, 0.04, 0.12], colW: [3.0, 1.6, 0.9, 1.9, 1.9, 1.85, 1.85] as number[] });
   s5.addText(
-    `Implied EV from median comps:  EV/Revenue → ${formatMoney(compsEvRevenue, company.currency)}  |  EV/EBITDA → ${formatMoney(compsEvEbitda, company.currency)}  |  Average → ${formatMoney(compsAvgEv, company.currency)}`,
+    hasComps
+      ? `Implied EV from median comps:  EV/Revenue → ${formatMoney(compsEvRevenue, company.currency)}  |  EV/EBITDA → ${formatMoney(compsEvEbitda, company.currency)}  |  Average → ${formatMoney(compsAvgEv, company.currency)}`
+      : "No comparable peers included — the valuation rests on the DCF alone.",
     { x: 0.28, y: 1.0 + (peers.length + 2) * 0.44 + 0.22, w: 13.0, h: 0.3, fontSize: 10, bold: true, color: C.slate },
   );
 
@@ -269,7 +278,7 @@ export async function exportPowerPointDeck(ctx: Ctx) {
     s7.addShape(pptx.ShapeType.rect, { x: 10.15, y: 0.36, w: 3.0, h: 0.52, fill: { color: C.goldSoft }, line: { color: "F1D39A" } });
     s7.addText(aiMemo.recommendation, { x: 10.2, y: 0.38, w: 2.9, h: 0.48, fontSize: 12, bold: true, color: C.gold, align: "center", valign: "middle" });
   }
-  const memoSummary = aiMemo?.summary || `${company.name} is a ${company.region}-based ${company.sector} company. Under the ${scenario} case, the blended valuation triangulates to ${formatMoney(blendedEnterpriseValue, company.currency)} enterprise value with an implied share price of ${company.currency} ${blendedSharePrice.toFixed(2)}.`;
+  const memoSummary = aiMemo?.summary || `${company.name} is a ${company.region}-based ${company.sector} company. Under the ${scenario} case, ${hasComps ? "the blended valuation triangulates to" : "the DCF alone (no comparable peers included) points to"} ${formatMoney(blendedEnterpriseValue, company.currency)} enterprise value with an implied share price of ${company.currency} ${blendedSharePrice.toFixed(2)}.`;
   s7.addText(memoSummary, { x: 0.28, y: 1.05, w: 13.0, h: 0.72, fontSize: 10.5, color: C.muted, valign: "top", fit: "shrink" });
   const memoThesis = aiMemo?.thesis || [`Attractive exposure to ${company.sector}.`, "Model implies scalable EBITDA profile through the five-year forecast.", "Peer group multiple cross-check supports valuation range."];
   const memoRisks = aiMemo?.risks || [`Terminal value is ${terminalShare.toFixed(0)}% of DCF enterprise value — high sensitivity.`, "Growth and margin assumptions drive most of the upside case.", "Peer multiple comparability requires business model validation."];

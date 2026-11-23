@@ -11,6 +11,7 @@ type Props = {
   terminalShare: number;
   blendedEv: number;
   blendedShare: number;
+  hasComps?: boolean;
   aiMemo: AiMemo | null;
   onGenerate: () => void;
   generating: boolean;
@@ -19,7 +20,7 @@ type Props = {
 
 export function MemoPanel({
   company, scenario, dcf, terminalShare,
-  blendedEv, blendedShare, aiMemo, onGenerate, generating, ccy,
+  blendedEv, blendedShare, hasComps = true, aiMemo, onGenerate, generating, ccy,
 }: Props) {
   // Ohne erzeugtes Memo keine erfundene These — nur, was aus dem Modell folgt.
   const thesis = aiMemo?.thesis?.length ? aiMemo.thesis : [
@@ -28,7 +29,7 @@ export function MemoPanel({
   const risks = aiMemo?.risks?.length ? aiMemo.risks : [
     `Terminal value represents ${terminalShare.toFixed(0)}% of DCF enterprise value — outcome highly sensitive to WACC and exit-multiple assumptions.`,
   ];
-  const summary = aiMemo?.summary || `${company.name} (${company.ticker}) is a ${company.region}-based ${company.sector} platform. Under the ${scenario} case, the blended valuation triangulates to ${formatMoney(blendedEv, ccy)} enterprise value, implying ${ccy} ${blendedShare.toFixed(2)} per share against a ${dcf.sharePrice.toFixed(2)} DCF-only fair value. Terminal-value contribution remains the dominant valuation lever.`;
+  const summary = aiMemo?.summary || `${company.name} (${company.ticker}) is a ${company.region}-based ${company.sector} platform. Under the ${scenario} case, ${hasComps ? `the blended valuation triangulates to ${formatMoney(blendedEv, ccy)} enterprise value, implying ${ccy} ${blendedShare.toFixed(2)} per share against a ${dcf.sharePrice.toFixed(2)} DCF-only fair value.` : `the DCF alone points to ${formatMoney(blendedEv, ccy)} enterprise value and ${ccy} ${blendedShare.toFixed(2)} per share; no comparable peers are included to cross-check it.`} Terminal-value contribution remains the dominant valuation lever.`;
 
   return (
     <section className="panel">

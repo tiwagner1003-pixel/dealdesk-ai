@@ -13,6 +13,7 @@ type Kpis = {
   terminal: number;
   dcfEv?: number;
   compsEv?: number;
+  hasComps?: boolean;
   evEbitda?: number;
   evRevenue?: number;
 };
@@ -48,7 +49,7 @@ export function CoPilot({ company, kpis, model, forecast, peers, scenario, activ
     role: "assistant" as const,
     body: `I've loaded your ${company.name} case. Here's a quick read:`,
     bullets: [
-      `Blended EV ${formatMoney(kpis.ev, company.currency)}${kpis.dcfEv ? ` (DCF ${formatMoney(kpis.dcfEv, company.currency)} / Comps ${formatMoney(kpis.compsEv ?? 0, company.currency)})` : ""}`,
+      `Blended EV ${formatMoney(kpis.ev, company.currency)}${kpis.dcfEv ? ` (DCF ${formatMoney(kpis.dcfEv, company.currency)} / ${kpis.hasComps === false ? "no comps — DCF only" : `Comps ${formatMoney(kpis.compsEv ?? 0, company.currency)}`})` : ""}`,
       `Implied share price ${company.currency} ${kpis.sharePrice.toFixed(2)}${kpis.spot ? ` vs spot ${company.currency} ${kpis.spot.toFixed(2)} → ${kpis.upside && kpis.upside > 0 ? "+" : ""}${kpis.upside?.toFixed(1)}%` : ""}`,
       `Terminal value ${kpis.terminal.toFixed(0)}% of DCF EV — key sensitivity lever`,
     ],

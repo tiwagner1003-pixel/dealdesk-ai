@@ -23,6 +23,33 @@ export function percentile(values: number[], p: number) {
   return lo === hi ? sorted[lo] : sorted[lo] + (sorted[hi] - sorted[lo]) * (idx - lo);
 }
 
+/**
+ * Comps zählen nur mit eingeschlossenen Peers. Bis zum 23.11.2026 griff die
+ * Rechnung auf alle Peers zurück, wenn keiner eingeschlossen war — wer jeden
+ * Haken entfernte, bekam trotzdem einen Median. Ohne Peers trägt der DCF allein.
+ */
+export function compsOf(peers: Peer[], revenue: number, ebitda: number) {
+  const incl = peers.filter((p) => p.included);
+  const rev = incl.map((p) => p.evRevenue);
+  const eb = incl.map((p) => p.evEbitda);
+  const medRev = median(rev);
+  const medEbitda = median(eb);
+  const has = incl.length > 0;
+  const evRev = revenue * medRev;
+  const evEbitda = ebitda * medEbitda;
+  return {
+    peers: incl, has, medRev, medEbitda,
+    revLow: percentile(rev, 0.25), revHigh: percentile(rev, 0.75),
+    ebitdaLow: percentile(eb, 0.25), ebitdaHigh: percentile(eb, 0.75),
+    evRev, evEbitda, avg: has ? (evRev + evEbitda) / 2 : 0,
+  };
+}
+
+/** Mittel aus DCF und den beiden Multiplikatoren — oder der DCF, wenn Comps fehlen. */
+export function blendEv(dcfEv: number, c: ReturnType<typeof compsOf>) {
+  return c.has ? (dcfEv + c.evRev + c.evEbitda) / 3 : dcfEv;
+}
+
 export function scenarioAdjustment(scenario: Scenario) {
   if (scenario === "upside") return { growth: 3, margin: 2 };
   if (scenario === "downside") return { growth: -4, margin: -3 };

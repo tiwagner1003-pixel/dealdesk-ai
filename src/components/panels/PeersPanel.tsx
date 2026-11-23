@@ -80,10 +80,12 @@ export function PeersPanel({ peers, onPeer, onAdd, onRemove, median }: Props) {
               <td></td>
               <td>Median (included)</td>
               <td></td>
-              <td>{median.revenueGrowth.toFixed(1)}%</td>
-              <td>{median.ebitdaMargin.toFixed(1)}%</td>
-              <td>{median.evRevenue.toFixed(1)}x</td>
-              <td>{median.evEbitda.toFixed(1)}x</td>
+              {peers.some((p) => p.included) ? <>
+                <td>{median.revenueGrowth.toFixed(1)}%</td>
+                <td>{median.ebitdaMargin.toFixed(1)}%</td>
+                <td>{median.evRevenue.toFixed(1)}x</td>
+                <td>{median.evEbitda.toFixed(1)}x</td>
+              </> : <td colSpan={4}>n/a — no peer included, valuation on DCF only</td>}
               <td></td>
             </tr>
           </tbody>

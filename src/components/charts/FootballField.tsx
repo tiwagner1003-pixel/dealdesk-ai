@@ -21,7 +21,10 @@ export function FootballField({ rows, scaleMax, ccy, currentEv }: Props) {
 
   const x = (v: number) => M.l + (v / scaleMax) * innerW;
 
-  const colors = ["#1e5bd8", "#4f8afe", "#7eaaf7", "#b7791f"];
+  // Die Spanne steht immer zuletzt und immer in Gold — auch wenn ohne Peers
+  // nur DCF und Spanne übrig bleiben.
+  const palette = ["#1e5bd8", "#4f8afe", "#7eaaf7"];
+  const colors = rows.map((_, i) => i === rows.length - 1 ? "#b7791f" : palette[i] ?? palette[palette.length - 1]);
 
   return (
     <div className="football-svg-wrap">
@@ -99,10 +102,9 @@ export function FootballField({ rows, scaleMax, ccy, currentEv }: Props) {
       </svg>
 
       <div className="football-legend">
-        <span className="swatch"><i style={{ background: "#1e5bd8" }}></i> DCF</span>
-        <span className="swatch"><i style={{ background: "#4f8afe" }}></i> EV / Revenue</span>
-        <span className="swatch"><i style={{ background: "#7eaaf7" }}></i> EV / EBITDA</span>
-        <span className="swatch"><i style={{ background: "#b7791f" }}></i> Blended range</span>
+        {rows.map((r, i) => (
+          <span key={r.label} className="swatch"><i style={{ background: colors[i] }}></i> {r.label}</span>
+        ))}
         <span className="ml-auto">— — current base case</span>
       </div>
     </div>

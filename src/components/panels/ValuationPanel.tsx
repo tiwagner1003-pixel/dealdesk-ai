@@ -21,6 +21,8 @@ type Props = {
   medianEvEbitda: number;
   compsEvRevenue: number;
   compsEvEbitda: number;
+  /** false: keine Peers eingeschlossen — der Block sagt das, statt Nullen zu zeigen. */
+  hasComps?: boolean;
 };
 
 export function ValuationPanel({
@@ -28,7 +30,7 @@ export function ValuationPanel({
   sensRows, sensCols, baseRow, baseCol,
   projection, dcf,
   currentEbitda, medianEvRevenue, medianEvEbitda,
-  compsEvRevenue, compsEvEbitda,
+  compsEvRevenue, compsEvEbitda, hasComps = true,
 }: Props) {
   return (
     <div style={{ display: "grid", gap: 16, gridTemplateColumns: "minmax(0, 1fr)" }}>
@@ -82,6 +84,13 @@ export function ValuationPanel({
             </div>
             <span className="head-aux">{ccy}m</span>
           </div>
+          {!hasComps ? (
+            <div style={{ padding: 20, color: "var(--muted)", fontSize: 13, lineHeight: 1.55 }}>
+              No comparable peers are included, so the valuation rests on the DCF alone.
+              The database holds too few companies from this sector for a meaningful median.
+              Include a suggested peer or add your own on the Peers tab to triangulate it.
+            </div>
+          ) : <>
           <div style={{ padding: "20px 20px 0" }}>
             <div className="kpi-card-hero" style={{ paddingTop: 0, borderBottom: 0 }}>
               <span className="kpi-label">Average comps EV</span>
@@ -100,6 +109,7 @@ export function ValuationPanel({
               <tr><td>Current EBITDA</td><td>{Math.round(currentEbitda).toLocaleString()}</td></tr>
             </tbody>
           </table>
+          </>}
         </section>
       </div>
 

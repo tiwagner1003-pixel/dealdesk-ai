@@ -72,7 +72,7 @@ VALUATION OUTPUTS:
 - Blended equity value → implied share price: ${ccy} ${kpis.sharePrice.toFixed(2)}
 ${kpis.spot ? `- Current market price: ${ccy} ${kpis.spot.toFixed(2)} → implied upside/downside: ${kpis.upside?.toFixed(1)}%` : ""}
 - Terminal value as % of DCF EV: ${kpis.terminal.toFixed(0)}%
-- Peer median EV/Revenue: ${kpis.evRevenue?.toFixed(1) ?? "n/a"}x | EV/EBITDA: ${kpis.evEbitda?.toFixed(1) ?? "n/a"}x
+- Peer median EV/Revenue: ${kpis.evRevenue ? `${kpis.evRevenue.toFixed(1)}x` : "n/a (no peers included, DCF only)"} | EV/EBITDA: ${kpis.evEbitda ? `${kpis.evEbitda.toFixed(1)}x` : "n/a"}
 
 5-YEAR FORECAST:
 ${forecastLines}
@@ -101,7 +101,8 @@ function fallbackReply(body: ChatBody): string {
     return `At ±100bps on WACC, implied share price swings roughly ±8-12%. Terminal value currently represents ${kpis.terminal.toFixed(0)}% of DCF EV — that is the primary sensitivity lever. Check the Valuation tab heatmap for the full WACC × terminal growth matrix.`;
   }
   if (msg.includes("peer") || msg.includes("comp")) {
-    return `The peer median EV/EBITDA is ${kpis.evEbitda?.toFixed(1) ?? "n/a"}x and EV/Revenue ${kpis.evRevenue?.toFixed(1) ?? "n/a"}x. These comps anchor the trading range in the football field.`;
+    if (!kpis.evEbitda) return `No comparable peers are included, so the valuation rests on the DCF alone. Add or include at least two peers from the same sector on the Peers tab to triangulate it.`;
+    return `The peer median EV/EBITDA is ${kpis.evEbitda.toFixed(1)}x and EV/Revenue ${(kpis.evRevenue ?? 0).toFixed(1)}x. These comps anchor the trading range in the football field.`;
   }
   if (msg.includes("memo") || msg.includes("buy") || msg.includes("recommend")) {
     return `Go to the Memo tab and hit "Generate AI memo" for a structured memo covering thesis, risks and deck outline.`;

@@ -14,6 +14,8 @@ type Kpis = {
   equity: number;
   dcfEv: number;
   compsEv: number;
+  /** false: keine Peers eingeschlossen, der Wert ruht allein auf dem DCF. */
+  hasComps?: boolean;
   terminal: number;
   evEbitda: number;
   evRevenue: number;

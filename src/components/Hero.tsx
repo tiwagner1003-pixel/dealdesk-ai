@@ -11,6 +11,8 @@ type Kpis = {
   equity: number;
   dcfEv: number;
   compsEv: number;
+  /** false: keine Peers eingeschlossen, der Wert ruht allein auf dem DCF. */
+  hasComps?: boolean;
   terminal: number;
   evEbitda: number;
   evRevenue: number;
@@ -80,7 +82,7 @@ export function Hero({
       <div className="hero-right">
         <div className="kpi-stack">
           <div className="kpi-card-hero">
-            <span className="kpi-label">Implied share price (blended)</span>
+            <span className="kpi-label">{kpis.hasComps === false ? "Implied share price (DCF)" : "Implied share price (blended)"}</span>
             <div className="kpi-value">
               <span className="num-display">{kpis.sharePrice.toFixed(2)}</span>
               <span className="unit">{company.currency}</span>
@@ -95,15 +97,17 @@ export function Hero({
           </div>
 
           <div className="kpi-card-hero">
-            <span className="kpi-label">Blended enterprise value</span>
+            <span className="kpi-label">{kpis.hasComps === false ? "Enterprise value (DCF only)" : "Blended enterprise value"}</span>
             <div className="kpi-value">
               <span className="num-display">{(kpis.ev / 1000).toFixed(1)}</span>
               <span className="unit">B {company.currency}</span>
             </div>
             <div className="kpi-sub">
-              <span>EV/EBITDA <span className="num">{kpis.evEbitda.toFixed(1)}x</span></span>
-              <span>·</span>
-              <span>EV/Rev <span className="num">{kpis.evRevenue.toFixed(1)}x</span></span>
+              {kpis.hasComps === false ? <span>No comparable peers included</span> : <>
+                <span>EV/EBITDA <span className="num">{kpis.evEbitda.toFixed(1)}x</span></span>
+                <span>·</span>
+                <span>EV/Rev <span className="num">{kpis.evRevenue.toFixed(1)}x</span></span>
+              </>}
             </div>
           </div>
         </div>
@@ -115,7 +119,7 @@ export function Hero({
           </div>
           <div className="kpi-mini">
             <span className="label">Comps EV</span>
-            <span className="val">{(kpis.compsEv / 1000).toFixed(1)}B</span>
+            <span className="val">{kpis.hasComps === false ? "n/a" : `${(kpis.compsEv / 1000).toFixed(1)}B`}</span>
           </div>
           <div className="kpi-mini">
             <span className="label">Terminal %</span>

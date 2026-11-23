@@ -24,6 +24,8 @@ type Ctx = {
   sensitivityRows: { wacc: number; values: number[] }[];
   terminalGrowthColumns: number[];
   includedPeers: Peer[];
+  /** false: keine Peers eingeschlossen, der Wert ruht allein auf dem DCF. */
+  hasComps?: boolean;
 };
 
 export async function exportExcelModel(ctx: Ctx) {
@@ -34,6 +36,7 @@ export async function exportExcelModel(ctx: Ctx) {
     medianEvRevenue, medianEvEbitda, terminalShare,
     valuationRows, sensitivityRows, terminalGrowthColumns, includedPeers,
   } = ctx;
+  const hasComps = ctx.hasComps ?? includedPeers.length > 0;
 
   const XLSX = (await import("xlsx-js-style")) as any;
 
@@ -90,7 +93,8 @@ export async function exportExcelModel(ctx: Ctx) {
   const wb = XLSX.utils.book_new();
   const proj = dcf.projection;
   const compsAvgEv = (compsEvRevenue + compsEvEbitda) / 2;
-  const medRows = includedPeers.length > 0 ? includedPeers : peers;
+  const medRows = includedPeers;
+  const na = () => c("n/a", ctr());
 
   // Cover
   const coverRows: (object | null)[][] = [
@@ -105,14 +109,14 @@ export async function exportExcelModel(ctx: Ctx) {
     [c("Scenario", lbl()), c(scenario.toUpperCase(), { font: { bold: true, sz: 10, color: { rgb: "B7791F" } }, alignment: { horizontal: "center" } }), null],
     [null, null, null],
     [c("KEY OUTPUTS", subHdr()), c(`${company.currency}m unless stated`, { font: { sz: 9, color: { rgb: "FFFFFF" } }, fill: { patternType: "solid", fgColor: { rgb: "2563EB" } }, alignment: { horizontal: "center" } }), null],
-    [c("Blended Enterprise Value", lbl()), c(Math.round(blendedEnterpriseValue), valBl("#,##0")), null],
-    [c("Blended Equity Value", lbl()), c(Math.round(blendedEquityValue), valBl("#,##0")), null],
+    [c(hasComps ? "Blended Enterprise Value" : "Enterprise Value (DCF only)", lbl()), c(Math.round(blendedEnterpriseValue), valBl("#,##0")), null],
+    [c(hasComps ? "Blended Equity Value" : "Equity Value (DCF only)", lbl()), c(Math.round(blendedEquityValue), valBl("#,##0")), null],
     [c("Implied Share Price", lbl()), c(blendedSharePrice, valBl(`"${company.currency} "0.00`)), null],
     [c("DCF Enterprise Value", lbl()), c(Math.round(dcf.enterpriseValue), val("#,##0")), null],
-    [c("Comps Enterprise Value (avg)", lbl()), c(Math.round(compsAvgEv), val("#,##0")), null],
+    [c("Comps Enterprise Value (avg)", lbl()), hasComps ? c(Math.round(compsAvgEv), val("#,##0")) : c("n/a – no peers included", ctr()), null],
     [c("Terminal Value Share", lbl()), c(terminalShare / 100, val("0.0%")), null],
-    [c("Peer Median EV / Revenue", lbl()), c(medianEvRevenue, val('0.0"x"')), null],
-    [c("Peer Median EV / EBITDA", lbl()), c(medianEvEbitda, val('0.0"x"')), null],
+    [c("Peer Median EV / Revenue", lbl()), hasComps ? c(medianEvRevenue, val('0.0"x"')) : na(), null],
+    [c("Peer Median EV / EBITDA", lbl()), hasComps ? c(medianEvEbitda, val('0.0"x"')) : na(), null],
   ];
   XLSX.utils.book_append_sheet(wb, buildSheet(coverRows, [34, 22, 4], [
     { s: { r: 0, c: 0 }, e: { r: 0, c: 2 } },
@@ -177,10 +181,12 @@ export async function exportExcelModel(ctx: Ctx) {
     c("Median", subHdr()),
     c("(included peers)", { ...subHdr(), alignment: { horizontal: "left" } }),
     c("", subHdr()),
-    c(median(medRows.map((p) => p.revenueGrowth)) / 100, valBl("0.0%")),
-    c(median(medRows.map((p) => p.ebitdaMargin)) / 100, valBl("0.0%")),
-    c(medianEvRevenue, valBl('0.0"x"')),
-    c(medianEvEbitda, valBl('0.0"x"')),
+    ...(hasComps ? [
+      c(median(medRows.map((p) => p.revenueGrowth)) / 100, valBl("0.0%")),
+      c(median(medRows.map((p) => p.ebitdaMargin)) / 100, valBl("0.0%")),
+      c(medianEvRevenue, valBl('0.0"x"')),
+      c(medianEvEbitda, valBl('0.0"x"')),
+    ] : [na(), na(), na(), na()]),
   ];
   const compsRows: (object | null)[][] = [
     [c("TRADING COMPS", hdr("left")), ...Array(6).fill(null) as null[]],

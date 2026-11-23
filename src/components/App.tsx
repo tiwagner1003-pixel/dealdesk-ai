@@ -21,7 +21,7 @@ import { RightRail } from "./RightRail";
 import { CaseCompare } from "./CaseCompare";
 import { Ico } from "./icons";
 
-import { calculateDcf, calculateProjection, median, percentile, pct,
+import { calculateDcf, calculateProjection, median, pct, compsOf, blendEv,
   INITIAL_COMPANY, INITIAL_MODEL, INITIAL_FORECAST, INITIAL_PEERS } from "@/lib/finance";
 import { exportExcelModel } from "@/lib/exportExcel";
 import { exportPowerPointDeck } from "@/lib/exportPpt";
@@ -50,6 +50,30 @@ type CaseState = {
   updated: string;
 };
 
+/**
+ * Fallpläne für Titel, bei denen die Faustregel des Beispielfalls (Wachstum je
+ * Teilbranche, Marge aus dem Vorjahr) ein schiefes Bild ergäbe. Die Zahlen folgen
+ * den Angaben des Unternehmens, nicht einer eigenen Prognose.
+ */
+const FALLPLAN: Record<string, { forecast: ForecastYear[]; ohnePeers?: string[] }> = {
+  // Adyen: für 2026 laut Halbjahresbericht 21–23 % Wachstum (währungsbereinigt, mit
+  // Zukäufen), laut Q3-Update 50 % EBITDA-Marge; das Ziel „über 55 % bis 2028“ ist
+  // mit dem Q3-Update gestrichen, deshalb
+  // steigt die Marge hier nur langsam. Nexi und Worldline stehen in der
+  // Vergleichsgruppe, zählen aber nicht: niedriges Wachstum, hohe Verschuldung,
+  // Umbau — kein Maßstab für einen Anbieter mit über 20 % Wachstum.
+  "ADYEN.AS": {
+    forecast: [
+      { year: 1, revenueGrowth: 22, ebitdaMargin: 50 },
+      { year: 2, revenueGrowth: 20, ebitdaMargin: 51 },
+      { year: 3, revenueGrowth: 18, ebitdaMargin: 52 },
+      { year: 4, revenueGrowth: 16, ebitdaMargin: 53 },
+      { year: 5, revenueGrowth: 14, ebitdaMargin: 53 },
+    ],
+    ohnePeers: ["NEXI.MI", "WLN.PA"],
+  },
+};
+
 function seedCase(id: string, ticker: string, tpl: SectorTemplate, scenario: Scenario,
                   status: CaseState["status"], author: string, updated: string): CaseState {
   const t = findTicker(ticker) || MARKET_DB[0];
@@ -61,6 +85,7 @@ function seedCase(id: string, ticker: string, tpl: SectorTemplate, scenario: Sce
           : "Europe",
     currency: t.ccy,
   };
+  const plan = FALLPLAN[t.ticker];
   const ebMargin = t.ebitda > 0 && t.revenue > 0 ? Math.round((t.ebitda / t.revenue) * 100) : 30;
   const model: ModelInput = {
     revenue: t.revenue || 1000,
@@ -75,14 +100,15 @@ function seedCase(id: string, ticker: string, tpl: SectorTemplate, scenario: Sce
     exitMultiple: tpl.exitMultiple,
   };
   const g = t.subSector?.includes("AI") ? 28 : t.subSector?.includes("Pay") ? 13 : 9;
-  const forecast: ForecastYear[] = [
+  const forecast: ForecastYear[] = plan?.forecast ?? [
     { year: 1, revenueGrowth: g,     ebitdaMargin: ebMargin },
     { year: 2, revenueGrowth: g - 1, ebitdaMargin: ebMargin + 1 },
     { year: 3, revenueGrowth: g - 3, ebitdaMargin: ebMargin + 1 },
     { year: 4, revenueGrowth: g - 5, ebitdaMargin: ebMargin + 2 },
     { year: 5, revenueGrowth: Math.max(g - 7, 4), ebitdaMargin: ebMargin + 2 },
   ];
-  const peers = suggestPeers(t, 5);
+  const peers = suggestPeers(t, 5).map((p) =>
+    plan?.ohnePeers?.includes(p.ticker) ? { ...p, included: false } : p);
   return {
     id, company, model, forecast, peers, scenario, tab: "setup",
     aiMemo: null, generating: false, status, author, updated,
@@ -323,19 +349,14 @@ function Workspace({ cur, onPatch, compareOn, setCompareOn }: {
   const removePeer = (i: number) => onPatch({ peers: peers.filter((_, j) => j !== i) });
   const onScenario = (s: Scenario) => onPatch({ scenario: s });
 
-  const incl = peers.filter((p) => p.included);
-  const valuationPeers = incl.length ? incl : peers;
   const dcf = useMemo(() => calculateDcf(model, forecast, scenario), [model, forecast, scenario]);
   const dcfD = useMemo(() => calculateDcf(model, forecast, "downside"), [model, forecast]);
   const dcfB = useMemo(() => calculateDcf(model, forecast, "base"), [model, forecast]);
   const dcfU = useMemo(() => calculateDcf(model, forecast, "upside"), [model, forecast]);
-  const medRev = median(valuationPeers.map((p) => p.evRevenue));
-  const medEbitda = median(valuationPeers.map((p) => p.evEbitda));
-  const evRevLow = percentile(valuationPeers.map((p) => p.evRevenue), 0.25);
-  const evRevHigh = percentile(valuationPeers.map((p) => p.evRevenue), 0.75);
-  const evEbitdaLow = percentile(valuationPeers.map((p) => p.evEbitda), 0.25);
-  const evEbitdaHigh = percentile(valuationPeers.map((p) => p.evEbitda), 0.75);
   const currentEbitda = model.revenue * pct(forecast[0]?.ebitdaMargin || 0);
+  const comps = compsOf(peers, model.revenue, currentEbitda);
+  const valuationPeers = comps.peers;
+  const { has: hasComps, medRev, medEbitda } = comps;
   const seedTicker = findTicker(company.ticker);
   const { ticker: t, loading: marketLoading, error: marketError, refresh: refreshMarket } = useMarketQuote(seedTicker, {
     shares: model.shares,
@@ -343,9 +364,9 @@ function Workspace({ cur, onPatch, compareOn, setCompareOn }: {
     revenue: model.revenue,
     ebitda: currentEbitda,
   });
-  const compsRev = model.revenue * medRev;
-  const compsEbitda = currentEbitda * medEbitda;
-  const blendedEv = (dcf.enterpriseValue + compsRev + compsEbitda) / 3;
+  const compsRev = comps.evRev;
+  const compsEbitda = comps.evEbitda;
+  const blendedEv = blendEv(dcf.enterpriseValue, comps);
   const blendedEq = blendedEv - model.netDebt;
   const blendedSp = model.shares > 0 ? blendedEq / model.shares : 0;
   const spot = t && !t.priv ? t.price : blendedSp * 0.88;
@@ -353,9 +374,11 @@ function Workspace({ cur, onPatch, compareOn, setCompareOn }: {
   const dcfRange = [dcfD.enterpriseValue, dcfB.enterpriseValue, dcfU.enterpriseValue];
   const ffRows = [
     { label: "DCF",           low: Math.min(...dcfRange), high: Math.max(...dcfRange) },
-    { label: "EV / Revenue",  low: model.revenue * evRevLow,   high: model.revenue * evRevHigh },
-    { label: "EV / EBITDA",   low: currentEbitda * evEbitdaLow,high: currentEbitda * evEbitdaHigh },
-    { label: "Blended range", low: blendedEv * 0.85,           high: blendedEv * 1.15 },
+    ...(hasComps ? [
+      { label: "EV / Revenue",  low: model.revenue * comps.revLow,   high: model.revenue * comps.revHigh },
+      { label: "EV / EBITDA",   low: currentEbitda * comps.ebitdaLow, high: currentEbitda * comps.ebitdaHigh },
+    ] : []),
+    { label: hasComps ? "Blended range" : "Valuation range", low: blendedEv * 0.85, high: blendedEv * 1.15 },
   ];
   const ffMax = Math.ceil(Math.max(...ffRows.map((r) => r.high)) / 10000) * 10000;
   const sensCols = [model.terminalGrowth - 0.5, model.terminalGrowth, model.terminalGrowth + 0.5];
@@ -378,11 +401,12 @@ function Workspace({ cur, onPatch, compareOn, setCompareOn }: {
     sensitivityRows: sensRows,
     terminalGrowthColumns: sensCols,
     includedPeers: valuationPeers,
+    hasComps,
   };
 
   const kpis = {
     sharePrice: blendedSp, spot, upside, ev: blendedEv, equity: blendedEq,
-    dcfEv: dcf.enterpriseValue, compsEv: (compsRev + compsEbitda) / 2,
+    dcfEv: dcf.enterpriseValue, compsEv: comps.avg, hasComps,
     terminal: dcf.terminalShare, evEbitda: medEbitda, evRevenue: medRev,
   };
 
@@ -507,7 +531,7 @@ function Workspace({ cur, onPatch, compareOn, setCompareOn }: {
             sensRows={sensRows} sensCols={sensCols} baseRow={1} baseCol={1}
             projection={dcf.projection} dcf={dcf}
             currentEbitda={currentEbitda} medianEvRevenue={medRev} medianEvEbitda={medEbitda}
-            compsEvRevenue={compsRev} compsEvEbitda={compsEbitda}/>
+            compsEvRevenue={compsRev} compsEvEbitda={compsEbitda} hasComps={hasComps}/>
           <Sens2DSlider model={model} forecast={forecast} scenario={scenario}
             onModelUpdate={(p) => onPatch({ model: { ...model, ...p } })} ccy={company.currency}/>
         </>
@@ -516,7 +540,7 @@ function Workspace({ cur, onPatch, compareOn, setCompareOn }: {
       {tab === "memo" && (
         <MemoPanel company={company} scenario={scenario}
           dcf={dcf} terminalShare={dcf.terminalShare}
-          blendedEv={blendedEv} blendedShare={blendedSp}
+          blendedEv={blendedEv} blendedShare={blendedSp} hasComps={hasComps}
           aiMemo={cur.aiMemo} onGenerate={generateMemo}
           generating={cur.generating} ccy={company.currency}/>
       )}
@@ -538,36 +562,31 @@ function pack(d: DcfOutput, model: ModelInput, forecast: ForecastYear[], s: Scen
 
 function kpiOf(c: CaseState) {
   const dcf = calculateDcf(c.model, c.forecast, c.scenario);
-  const incl = c.peers.filter((p) => p.included);
-  const valPeers = incl.length ? incl : c.peers;
-  const medRev = median(valPeers.map((p) => p.evRevenue));
-  const medEbitda = median(valPeers.map((p) => p.evEbitda));
   const ebitda = c.model.revenue * pct(c.forecast[0]?.ebitdaMargin || 0);
-  const compsRev = c.model.revenue * medRev;
-  const compsEbitda = ebitda * medEbitda;
-  const ev = (dcf.enterpriseValue + compsRev + compsEbitda) / 3;
+  const comps = compsOf(c.peers, c.model.revenue, ebitda);
+  const ev = blendEv(dcf.enterpriseValue, comps);
   const eq = ev - c.model.netDebt;
   const sp = c.model.shares > 0 ? eq / c.model.shares : 0;
   const t = findTicker(c.company.ticker);
   const spot = t && !t.priv ? t.price : sp * 0.88;
   return { sharePrice: sp, spot, upside: spot > 0 ? ((sp / spot) - 1) * 100 : 0,
     ev, equity: eq, dcfEv: dcf.enterpriseValue,
-    compsEv: (compsRev + compsEbitda) / 2,
-    terminal: dcf.terminalShare, evEbitda: medEbitda, evRevenue: medRev };
+    compsEv: comps.avg, hasComps: comps.has,
+    terminal: dcf.terminalShare, evEbitda: comps.medEbitda, evRevenue: comps.medRev };
 }
 
 function ffOf(c: CaseState) {
   const dcfD = calculateDcf(c.model, c.forecast, "downside");
   const dcfB = calculateDcf(c.model, c.forecast, "base");
   const dcfU = calculateDcf(c.model, c.forecast, "upside");
-  const incl = c.peers.filter((p) => p.included);
-  const valPeers = incl.length ? incl : c.peers;
-  const medRev = median(valPeers.map((p) => p.evRevenue));
-  const medEbitda = median(valPeers.map((p) => p.evEbitda));
   const ebitda = c.model.revenue * pct(c.forecast[0]?.ebitdaMargin || 0);
-  const compsRev = c.model.revenue * medRev;
-  const compsEbitda = ebitda * medEbitda;
+  const comps = compsOf(c.peers, c.model.revenue, ebitda);
+  const compsRev = comps.evRev;
+  const compsEbitda = comps.evEbitda;
   const range = [dcfD.enterpriseValue, dcfB.enterpriseValue, dcfU.enterpriseValue];
+  if (!comps.has) return [
+    { label: "DCF",      low: Math.min(...range),      high: Math.max(...range) },
+  ];
   return [
     { label: "DCF",      low: Math.min(...range),      high: Math.max(...range) },
     { label: "EV/Rev",   low: compsRev * 0.85,         high: compsRev * 1.15 },
