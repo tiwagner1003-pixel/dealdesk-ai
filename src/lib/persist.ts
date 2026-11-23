@@ -13,6 +13,8 @@ export type Persisted<C> = {
   openCases: string[];
   activeCase: string;
   theme: "light" | "dark";
+  /** Stand der Beispielfälle, mit dem gespeichert wurde. Fehlt bei Ständen vor dem 23.11.2026. */
+  beispielStand?: string;
 };
 
 export function loadState<C extends { id: string }>(): Persisted<C> | null {
@@ -28,6 +30,7 @@ export function loadState<C extends { id: string }>(): Persisted<C> | null {
       openCases: Array.isArray(data.openCases) ? data.openCases.filter((id) => ids.has(id)) : [],
       activeCase: ids.has(data.activeCase) ? data.activeCase : (data.cases[0]?.id ?? ""),
       theme: data.theme === "dark" ? "dark" : "light",
+      beispielStand: typeof data.beispielStand === "string" ? data.beispielStand : undefined,
     };
   } catch {
     return null;

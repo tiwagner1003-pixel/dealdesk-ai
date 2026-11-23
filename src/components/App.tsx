@@ -211,6 +211,14 @@ const TPL_BNK  = SECTOR_TEMPLATES.find((t) => t.id === "bank")!;
 const TPL_ENE  = SECTOR_TEMPLATES.find((t) => t.id === "energy")!;
 const TPL_IND  = SECTOR_TEMPLATES.find((t) => t.id === "indust")!;
 
+/**
+ * Stand der Beispielfälle. Wer ihn hochsetzt, ersetzt bei wiederkehrenden
+ * Besuchern alle Beispielfälle durch die aktuelle Fassung — eigene Fälle bleiben.
+ * Hochsetzen, sobald sich Fallplan, Marktdaten oder Peers der Beispiele ändern;
+ * sonst rechnet jeder, der die Seite schon kannte, mit dem alten Stand weiter.
+ */
+const BEISPIEL_STAND = "2026-11-23";
+
 const SEED_CASES: CaseState[] = [
   seedCase("adyen",   "ADYEN.AS", TPL_FIN,  "base",     "In review", "Luca Schmidt",      "14:08 today"),
   seedCase("stripe",  "STRIPE",   TPL_FIN,  "upside",   "Draft",     "Luca Schmidt",      "11:08 today"),
@@ -255,9 +263,13 @@ export function App() {
   useEffect(() => {
     const stored = loadState<CaseState>();
     if (stored) {
-      // Neue Beispielfälle auch für wiederkehrende Besucher; vorhandene bleiben, wie sie sind.
+      // Eigene Fälle bleiben, wie sie sind. Beispielfälle werden durch die aktuelle
+      // Fassung ersetzt, wenn sie mit einem älteren Stand gespeichert wurden, und
+      // fehlende Beispiele kommen hinzu.
+      const veraltet = stored.beispielStand !== BEISPIEL_STAND;
+      const frisch = new Map(SEED_CASES.map((c) => [c.id, c]));
       const bekannt = new Set(stored.cases.map((c) => c.id));
-      setCases([...stored.cases.map((c) => ({ ...c, generating: false })),
+      setCases([...stored.cases.map((c) => (veraltet && frisch.get(c.id)) || { ...c, generating: false }),
                 ...SEED_CASES.filter((c) => !bekannt.has(c.id))]);
       setOpenCases(stored.openCases);
       setActiveCase(stored.activeCase);
@@ -270,7 +282,7 @@ export function App() {
   useEffect(() => {
     if (!loaded) return;
     const id = setTimeout(() => {
-      const ok = saveState({ version: 1, cases, openCases, activeCase, theme });
+      const ok = saveState({ version: 1, cases, openCases, activeCase, theme, beispielStand: BEISPIEL_STAND });
       setSaveState(ok ? "saved" : "blocked");
     }, 400);
     return () => clearTimeout(id);
