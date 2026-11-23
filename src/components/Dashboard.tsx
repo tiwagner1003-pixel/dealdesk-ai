@@ -285,7 +285,7 @@ export function Dashboard({
         delayed or replaced by sample data; sample cases and their authors are fictional.
         Nothing here is investment advice.
         <span className="dash-foot-links">
-          <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a>
+          <a href="/methodology">Methodology</a> · <a href="/impressum">Impressum</a> · <a href="/datenschutz">Datenschutz</a>
         </span>
       </footer>
     </div>

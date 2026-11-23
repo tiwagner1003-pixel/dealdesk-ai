@@ -143,26 +143,31 @@ Return ONLY valid JSON (no markdown, no explanation):
 }
 
 export async function POST(request: NextRequest) {
+  let body: Record<string, unknown>;
   try {
-    const body = (await request.json()) as Record<string, unknown>;
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return NextResponse.json({ error: "Invalid request body." }, { status: 400 });
+  }
 
-    if (!process.env.ANTHROPIC_API_KEY) {
-      return NextResponse.json({ memo: fallbackMemo(body) });
-    }
+  if (!process.env.ANTHROPIC_API_KEY) {
+    return NextResponse.json({ memo: fallbackMemo(body) });
+  }
 
+  try {
     const client = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
-
     const response = await client.messages.create({
       model: "claude-sonnet-4-6",
       max_tokens: 1024,
       messages: [{ role: "user", content: buildMemoPrompt(body) }],
     });
-
     const raw = response.content[0].type === "text" ? response.content[0].text : "";
     const parsed = JSON.parse(cleanJson(raw));
     return NextResponse.json({ memo: validateMemo(parsed) });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "AI memo generation failed.";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // Ungültiger Schlüssel, Kontingent, Zeitüberschreitung oder unlesbares JSON:
+    // Die Seite zeigt dann die regelbasierte Fassung statt einer Fehlermeldung.
+    console.warn(`[ai-memo] falling back to rules: ${error instanceof Error ? error.message : error}`);
+    return NextResponse.json({ memo: fallbackMemo(body) });
   }
 }

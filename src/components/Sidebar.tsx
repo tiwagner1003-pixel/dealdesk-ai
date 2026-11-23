@@ -63,6 +63,11 @@ export function Sidebar({
 
         <SidebarBtn label="Search" onClick={onSearch} icon={<Icons.search/>}/>
         <SidebarBtn label="Templates" onClick={onTemplates} icon={<Icons.sparkle/>}/>
+        <SidebarBtn label="Methodology" short="Method" onClick={() => { window.location.href = "/methodology"; }} icon={
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M3 2.5h7l3 3v8h-10z"/><path d="M5.5 7.5h5M5.5 10h5"/>
+          </svg>
+        }/>
       </nav>
 
       <div style={{ flex: 1 }}/>
@@ -82,10 +87,12 @@ export function Sidebar({
 }
 
 function SidebarBtn({
-  icon, label, active, onClick, badge,
+  icon, label, short, active, onClick, badge,
 }: {
   icon: React.ReactNode;
   label: string;
+  /** Kürzere Fassung für die Leiste am unteren Rand auf dem Handy. */
+  short?: string;
   active?: boolean;
   onClick?: () => void;
   badge?: number;
@@ -97,7 +104,9 @@ function SidebarBtn({
       title={label}
     >
       <span className="sb-icon">{icon}</span>
-      <span className="sb-label">{label}</span>
+      {short
+        ? <span className="sb-label"><span className="sb-long">{label}</span><span className="sb-short">{short}</span></span>
+        : <span className="sb-label">{label}</span>}
       {badge ? <span className="sb-badge">{badge}</span> : null}
     </button>
   );

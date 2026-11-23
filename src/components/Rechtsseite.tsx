@@ -15,7 +15,7 @@ export function Rechtsseite({ titel, unterzeile, children }: {
       </header>
       <main className="legal-body">{children}</main>
       <footer className="legal-foot">
-        <Link href="/impressum">Impressum</Link> · <Link href="/datenschutz">Datenschutz</Link>
+        <Link href="/methodology">Methodology</Link> · <Link href="/impressum">Impressum</Link> · <Link href="/datenschutz">Datenschutz</Link>
       </footer>
     </div>
   );

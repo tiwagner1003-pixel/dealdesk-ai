@@ -85,7 +85,7 @@ function computeResult(quote: Quote, params: { shares: number; netDebt: number; 
     dayLow: quote.dayLow,
     priceVs52wHigh: quote.week52High > 0 ? ((quote.price / quote.week52High) - 1) * 100 : 0,
     source: quote.source,
-    status: quote.source === "Twelve Data" ? "live" : "fallback",
+    status: quote.source === "Twelve Data" || quote.source === "Yahoo Finance" ? "live" : "fallback",
     fetchedAt: new Date().toISOString(),
     history: quote.history && quote.history.length > 1 ? quote.history : null,
     asOf: quote.asOf ?? null,

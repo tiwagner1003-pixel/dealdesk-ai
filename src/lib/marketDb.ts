@@ -106,7 +106,9 @@ export const MARKET_DB: TickerInfo[] = [
   { ticker: "BLK",      name: "BlackRock",    exchange: "NYSE", sector: "AssetMgmt", subSector: "Asset Manager", ccy: "USD", price: 1155.88, prevClose: 1101.72, mktCap: 190142, netDebt: -137,  shares: 164.5, revenue: 24216, ebitda: 9600, pe: 32.7, evEbitda: 19.8, evRev: 7.8, revGrowth: 21, beta: 1.18, divYield: 2.0,  range52w: [917.39, 1242.12] },
 
   { ticker: "STRIPE",   name: "Stripe",       exchange: "PRIV", sector: "FinTech",   subSector: "Payments",      ccy: "USD", price: 0, prevClose: 0, mktCap: 91500, netDebt: -2800, shares: 0, revenue: 22800, ebitda: 6840, pe: 0, evEbitda: 13.0, evRev: 3.9, beta: 0, divYield: 0, range52w: [0, 0], priv: true },
-  { ticker: "KLARN.IPO",name: "Klarna",       exchange: "PRIV", sector: "FinTech",   subSector: "BNPL",          ccy: "USD", price: 0, prevClose: 0, mktCap: 14800, netDebt: 420,   shares: 0, revenue: 2280,  ebitda: 184,  pe: 0, evEbitda: 82.6, evRev: 6.7, beta: 0, divYield: 0, range52w: [0, 0], priv: true },
+  // Klarna ist seit dem 10.09.2025 an der NYSE notiert (KLAR); bis zum 23.11.2026 stand es hier
+  // als privat. Yahoo, 23.11.2026. EBITDA negativ — als Kreditgeber ohnehin kein EV/EBITDA-Titel.
+  { ticker: "KLAR", name: "Klarna", exchange: "NYSE", sector: "FinTech", subSector: "BNPL", ccy: "USD", price: 13.07, prevClose: 12.01, mktCap: 4971, netDebt: -1808, shares: 380.4, revenue: 4145, ebitda: -15, pe: 0, evEbitda: 0, evRev: 0.7, revGrowth: 18.5, beta: 0, divYield: 0, range52w: [11.97, 33.1] },
   { ticker: "OPENAI",   name: "OpenAI",       exchange: "PRIV", sector: "Software",  subSector: "AI Lab",        ccy: "USD", price: 0, prevClose: 0, mktCap: 152000, netDebt: 0,     shares: 0, revenue: 4800,  ebitda: -3200, pe: 0, evEbitda: 0, evRev: 31.7, beta: 0, divYield: 0, range52w: [0, 0], priv: true },
 
   { ticker: "XOM", name: "ExxonMobil", exchange: "NYSE", sector: "Energy", subSector: "Integrated Oil", ccy: "USD", price: 158.52, prevClose: 159.99, mktCap: 646638, netDebt: 22097, shares: 4079.2, revenue: 388232, ebitda: 77964, pe: 16.3, evEbitda: 8.6, evRev: 1.7, revGrowth: 31.3, beta: 0.14, divYield: 2.7, range52w: [114.19, 188.5] },

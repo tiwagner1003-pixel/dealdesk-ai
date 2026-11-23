@@ -159,11 +159,11 @@ export async function exportPowerPointDeck(ctx: Ctx) {
   const pjTable = [
     [hCell(""), ...proj.map((p) => hCell(`Year ${p.year}`)), hCell("CAGR")],
     [panelCell("Revenue Growth %", true), ...proj.map((p) => mutedCell(`${p.revenueGrowth.toFixed(1)}%`)), pjCell("", { fill: { color: C.panel } })],
-    [blCell("Revenue", true), ...proj.map((p) => blCell(Math.round(p.revenue).toLocaleString())), blCell(`${revenueCAGR.toFixed(1)}%`)],
+    [blCell("Revenue", true), ...proj.map((p) => blCell(Math.round(p.revenue).toLocaleString("en-US"))), blCell(`${revenueCAGR.toFixed(1)}%`)],
     [panelCell("EBITDA Margin %", true), ...proj.map((p) => mutedCell(`${p.ebitdaMargin.toFixed(1)}%`)), pjCell("", { fill: { color: C.panel } })],
-    [panelCell("EBITDA", true), ...proj.map((p) => numCell(Math.round(p.ebitda).toLocaleString())), pjCell("", { fill: { color: C.panel } })],
-    [panelCell("EBIT", true), ...proj.map((p) => numCell(Math.round(p.ebit).toLocaleString())), pjCell("", { fill: { color: C.panel } })],
-    [blSoftCell("Free Cash Flow", true), ...proj.map((p) => blSoftCell(Math.round(p.fcf).toLocaleString())), pjCell("", { fill: { color: C.blueSoft } })],
+    [panelCell("EBITDA", true), ...proj.map((p) => numCell(Math.round(p.ebitda).toLocaleString("en-US"))), pjCell("", { fill: { color: C.panel } })],
+    [panelCell("EBIT", true), ...proj.map((p) => numCell(Math.round(p.ebit).toLocaleString("en-US"))), pjCell("", { fill: { color: C.panel } })],
+    [blSoftCell("Free Cash Flow", true), ...proj.map((p) => blSoftCell(Math.round(p.fcf).toLocaleString("en-US"))), pjCell("", { fill: { color: C.blueSoft } })],
   ];
   s3.addTable(pjTable as any, { x: 0.28, y: 1.0, w: 13.0, rowH: 0.48, fontSize: 10, border: { type: "solid", color: C.line, pt: 0.5 }, margin: [0.04, 0.12, 0.04, 0.12], colW: [2.7, 2.06, 2.06, 2.06, 2.06, 2.06, 0.9] as number[] });
   s3.addText("Key Assumptions", { x: 0.28, y: 4.52, w: 4, h: 0.28, fontSize: 12, bold: true, color: C.slate });
@@ -171,7 +171,7 @@ export async function exportPowerPointDeck(ctx: Ctx) {
     { label: "WACC", value: `${model.wacc.toFixed(1)}%` },
     { label: "Terminal Growth", value: `${model.terminalGrowth.toFixed(1)}%` },
     { label: "Exit Multiple", value: `${model.exitMultiple.toFixed(1)}x` },
-    { label: "Net Debt", value: `${company.currency} ${model.netDebt.toLocaleString()}m` },
+    { label: "Net Debt", value: `${company.currency} ${model.netDebt.toLocaleString("en-US")}m` },
     { label: "Shares Out.", value: `${model.shares}m` },
   ].forEach((a, i) => kpiBox(s3, 0.28 + i * 2.54, 4.9, 2.3, 0.78, a.label, a.value));
 
@@ -196,7 +196,7 @@ export async function exportPowerPointDeck(ctx: Ctx) {
   });
   [0, 0.25, 0.5, 0.75, 1.0].forEach((p) => {
     const x = trackX + p * trackW;
-    s4.addText(`${Math.round(valuationScaleMax * p).toLocaleString()}`, { x: x - 0.5, y: 6.65, w: 1.0, h: 0.2, fontSize: 8, color: C.muted, align: "center" });
+    s4.addText(`${Math.round(valuationScaleMax * p).toLocaleString("en-US")}`, { x: x - 0.5, y: 6.65, w: 1.0, h: 0.2, fontSize: 8, color: C.muted, align: "center" });
     s4.addShape(pptx.ShapeType.rect, { x, y: 6.62, w: 0.01, h: 0.08, fill: { color: C.line }, line: { color: C.line } });
   });
   s4.addText(`${company.currency}m`, { x: 0.25, y: 6.65, w: 3.1, h: 0.2, fontSize: 8, color: C.muted, align: "right" });
@@ -267,7 +267,7 @@ export async function exportPowerPointDeck(ctx: Ctx) {
     ]),
   ];
   s6.addTable(sensTable as any, { x: 2.9, y: 1.25, w: 7.5, rowH: 0.78, fontSize: 15, border: { type: "solid", color: C.line, pt: 0.5 }, margin: 0.1, colW: [1.9, 1.87, 1.87, 1.87] as number[] });
-  s6.addText(`Base: WACC ${model.wacc.toFixed(1)}%  ·  Terminal growth ${model.terminalGrowth.toFixed(1)}%  ·  Exit multiple ${model.exitMultiple.toFixed(1)}x  ·  Net debt ${company.currency} ${model.netDebt.toLocaleString()}m`, { x: 0.28, y: 4.65, w: 13.0, h: 0.3, fontSize: 9, color: C.muted, align: "center" });
+  s6.addText(`Base: WACC ${model.wacc.toFixed(1)}%  ·  Terminal growth ${model.terminalGrowth.toFixed(1)}%  ·  Exit multiple ${model.exitMultiple.toFixed(1)}x  ·  Net debt ${company.currency} ${model.netDebt.toLocaleString("en-US")}m`, { x: 0.28, y: 4.65, w: 13.0, h: 0.3, fontSize: 9, color: C.muted, align: "center" });
 
   /* Slide 7: Memo */
   const s7 = pptx.addSlide();

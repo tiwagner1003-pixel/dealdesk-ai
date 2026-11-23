@@ -67,9 +67,9 @@ export function ValuationPanel({
           </div>
           <table className="data-table">
             <tbody>
-              <tr><td>Gordon growth EV</td><td>{Math.round(dcf.gordonEnterpriseValue).toLocaleString()}</td></tr>
-              <tr><td>Exit multiple EV</td><td>{Math.round(dcf.exitEnterpriseValue).toLocaleString()}</td></tr>
-              <tr><td>Equity value</td><td>{Math.round(dcf.equityValue).toLocaleString()}</td></tr>
+              <tr><td>Gordon growth EV</td><td>{Math.round(dcf.gordonEnterpriseValue).toLocaleString("en-US")}</td></tr>
+              <tr><td>Exit multiple EV</td><td>{Math.round(dcf.exitEnterpriseValue).toLocaleString("en-US")}</td></tr>
+              <tr><td>Equity value</td><td>{Math.round(dcf.equityValue).toLocaleString("en-US")}</td></tr>
               <tr><td>Implied share price</td><td>{ccy} {dcf.sharePrice.toFixed(2)}</td></tr>
               <tr><td>Terminal value share</td><td>{dcf.terminalShare.toFixed(0)}%</td></tr>
             </tbody>
@@ -104,9 +104,9 @@ export function ValuationPanel({
             <tbody>
               <tr><td>EV / Revenue (median peer)</td><td>{medianEvRevenue.toFixed(1)}x</td></tr>
               <tr><td>EV / EBITDA (median peer)</td><td>{medianEvEbitda.toFixed(1)}x</td></tr>
-              <tr><td>Implied EV (Rev)</td><td>{Math.round(compsEvRevenue).toLocaleString()}</td></tr>
-              <tr><td>Implied EV (EBITDA)</td><td>{Math.round(compsEvEbitda).toLocaleString()}</td></tr>
-              <tr><td>Current EBITDA</td><td>{Math.round(currentEbitda).toLocaleString()}</td></tr>
+              <tr><td>Implied EV (Rev)</td><td>{Math.round(compsEvRevenue).toLocaleString("en-US")}</td></tr>
+              <tr><td>Implied EV (EBITDA)</td><td>{Math.round(compsEvEbitda).toLocaleString("en-US")}</td></tr>
+              <tr><td>Current EBITDA</td><td>{Math.round(currentEbitda).toLocaleString("en-US")}</td></tr>
             </tbody>
           </table>
           </>}

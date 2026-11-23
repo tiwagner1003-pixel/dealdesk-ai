@@ -72,11 +72,11 @@ export function CaseCompare({ onClose, downside, base, upside, ccy, onPickScenar
             </div>
             <div className="bar"><div style={{ width: (c.data.ev / maxEv * 100) + "%" }}/></div>
             <div className="stat-list">
-              <div className="stat"><span className="k">Revenue Year-5</span><span className="v">{Math.round(c.data.year5Revenue).toLocaleString()}</span></div>
+              <div className="stat"><span className="k">Revenue Year-5</span><span className="v">{Math.round(c.data.year5Revenue).toLocaleString("en-US")}</span></div>
               <div className="stat"><span className="k">EBITDA margin avg</span><span className="v">{c.data.avgMargin.toFixed(1)}%</span></div>
-              <div className="stat"><span className="k">FCF Year-5</span><span className="v">{Math.round(c.data.year5Fcf).toLocaleString()}</span></div>
+              <div className="stat"><span className="k">FCF Year-5</span><span className="v">{Math.round(c.data.year5Fcf).toLocaleString("en-US")}</span></div>
               <div className="stat"><span className="k">Terminal share</span><span className="v">{c.data.terminal.toFixed(0)}%</span></div>
-              <div className="stat"><span className="k">Equity value</span><span className="v">{Math.round(c.data.equity).toLocaleString()}</span></div>
+              <div className="stat"><span className="k">Equity value</span><span className="v">{Math.round(c.data.equity).toLocaleString("en-US")}</span></div>
             </div>
           </div>
         ))}

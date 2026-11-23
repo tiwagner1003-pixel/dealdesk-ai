@@ -4,6 +4,7 @@ import type {
   Scenario, DcfOutput,
 } from "./types";
 import { enterpriseToSharePrice, median, pct } from "./finance";
+import type { LboInputs, LboOutput } from "./lbo";
 
 type Ctx = {
   company: CompanyInput;
@@ -26,6 +27,8 @@ type Ctx = {
   includedPeers: Peer[];
   /** false: keine Peers eingeschlossen, der Wert ruht allein auf dem DCF. */
   hasComps?: boolean;
+  /** LBO aus dem Fall; fehlt, wenn das EBITDA nicht positiv ist. */
+  lbo?: { inputs: LboInputs; out: LboOutput } | null;
 };
 
 export async function exportExcelModel(ctx: Ctx) {
@@ -231,6 +234,51 @@ export async function exportExcelModel(ctx: Ctx) {
   ];
   XLSX.utils.book_append_sheet(wb, buildSheet(ffRows, [26, 18, 18, 16, 16], [{ s: { r: 0, c: 0 }, e: { r: 0, c: 4 } }], 2), "Football Field");
 
+  // LBO — sponsor view
+  if (ctx.lbo) {
+    const { inputs: li, out: lo } = ctx.lbo;
+    const m0 = "#,##0";
+    const lboRows: (object | null)[][] = [
+      [c(`LBO Returns  ·  ${company.currency}m`, hdr("left")), ...Array(8).fill(null)],
+      [null],
+      [c("ASSUMPTIONS", subHdr()), c("VALUE", subHdr())],
+      [c("Entry EV / LTM EBITDA", lbl()), c(li.entryMultiple, val('0.0"x"'))],
+      [c("Exit EV / EBITDA", lbl()), c(li.exitMultiple, val('0.0"x"'))],
+      [c("Equity share of entry EV", lbl()), c(li.equityPct / 100, val("0%"))],
+      [c("Cost of debt", lbl()), c(li.debtRate / 100, val("0.00%"))],
+      [c("Hold period (years)", lbl()), c(li.holdYears, val("0"))],
+      [c("Revenue growth p.a.", lbl()), c(li.revenueGrowth / 100, val("0.0%"))],
+      [c("EBITDA margin expansion (pp, total)", lbl()), c(li.marginExpansion, val("0.0"))],
+      [c("Entry EV", lbl()), c(Math.round(lo.entryEv), val(m0))],
+      [c("Sponsor equity / Debt", lbl()), c(`${Math.round(lo.equity).toLocaleString("en-US")} / ${Math.round(lo.debt).toLocaleString("en-US")}`, ctr("right"))],
+      [null],
+      [c("Year", hdr()), c("Revenue", hdr()), c("EBITDA", hdr()), c("Interest", hdr()), c("Tax", hdr()),
+       c("Levered FCF", hdr()), c("Debt repaid", hdr()), c("Debt EOP", hdr()), c("Cash EOP", hdr())],
+      [c("Entry", lblSub()), c(Math.round(lo.entryRevenue), val(m0)), c(Math.round(lo.entryEbitda), val(m0)),
+       null, null, null, null, c(Math.round(lo.debt), val(m0)), c(0, val(m0))],
+      ...lo.years.map((y) => [
+        c(`Y${y.year}`, lbl()), c(Math.round(y.revenue), val(m0)), c(Math.round(y.ebitda), val(m0)),
+        c(Math.round(y.interest), val(m0)), c(Math.round(y.tax), val(m0)), c(Math.round(y.fcf), val(m0)),
+        c(Math.round(y.repaid), val(m0)), c(Math.round(y.debt), val(m0)), c(Math.round(y.cash), val(m0)),
+      ]),
+      [null],
+      [c("RETURNS", subHdr()), c("VALUE", subHdr())],
+      [c("Exit EV", lbl()), c(Math.round(lo.exitEv), val(m0))],
+      [c("Exit net debt", lbl()), c(Math.round(lo.exitNetDebt), val(m0))],
+      [c("Exit equity", lbl()), c(Math.round(lo.exitEquity), valBl(m0))],
+      [c("MOIC", lbl()), c(lo.moic, valBl('0.00"x"'))],
+      [c("IRR", lbl()), lo.irr > -1 ? c(lo.irr, valBl("0.0%")) : c("n/m", ctr())],
+      [null],
+      [c("VALUE CREATION BRIDGE", subHdr()), c("", subHdr())],
+      [c("Entry equity", lbl()), c(Math.round(lo.bridge.entryEquity), val(m0))],
+      [c("EBITDA growth × exit multiple", lbl()), c(Math.round(lo.bridge.ebitdaGrowth), val(m0))],
+      [c("Multiple expansion / contraction", lbl()), c(Math.round(lo.bridge.multipleArbitrage), val(m0))],
+      [c("Deleveraging (net debt reduction)", lbl()), c(Math.round(lo.bridge.deleveraging), val(m0))],
+      [c("Exit equity", lbl()), c(Math.round(lo.bridge.exitEquity), valGd(m0))],
+    ];
+    XLSX.utils.book_append_sheet(wb, buildSheet(lboRows, [34, 14, 14, 12, 12, 14, 14, 14, 14], [{ s: { r: 0, c: 0 }, e: { r: 0, c: 8 } }], 2), "LBO");
+  }
+
   // Hidden legacy sheets (kept for re-import)
   const legacySheets = [
     {
@@ -306,7 +354,7 @@ export async function importExcelModel(file: File): Promise<{
   forecast: ForecastYear[] | null;
   peers: Peer[] | null;
 }> {
-  const XLSX = await import("xlsx");
+  const XLSX = await import("xlsx-js-style"); // dieselbe SheetJS-API, ohne zweites Paket
   const buf = await file.arrayBuffer();
   const wb = XLSX.read(buf, { type: "array" });
   const getRows = (n: string) =>

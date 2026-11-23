@@ -90,8 +90,8 @@ export function ModelPanel({ company, model, onModel, forecast, onForecast }: Pr
                         onChange={(e) => onForecast(i, "ebitdaMargin", e.target.value)}
                       />
                     </td>
-                    <td>{Math.round(rev).toLocaleString()}</td>
-                    <td>{Math.round(ebitda).toLocaleString()}</td>
+                    <td>{Math.round(rev).toLocaleString("en-US")}</td>
+                    <td>{Math.round(ebitda).toLocaleString("en-US")}</td>
                   </tr>
                 );
               })}

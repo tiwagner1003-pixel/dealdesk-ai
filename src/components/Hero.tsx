@@ -5,8 +5,9 @@ import type { CompanyInput, Scenario } from "@/lib/types";
 
 type Kpis = {
   sharePrice: number;
-  spot: number;
-  upside: number;
+  /** null: keine Börsennotiz — dann steht der Eigenkapitalwert vorn, nicht ein Kurs. */
+  spot: number | null;
+  upside: number | null;
   ev: number;
   equity: number;
   dcfEv: number;
@@ -38,7 +39,7 @@ export function Hero({
         <div className="hero-meta">
           <span className="tag blue">{company.sector}</span>
           <span className="tag">{company.region}</span>
-          <span className="tag">{company.ticker} · {company.exchange || "AMS"}</span>
+          {company.ticker && <span className="tag">{company.ticker}{company.exchange ? ` · ${company.exchange}` : ""}</span>}
           <span className="tag">{company.currency}</span>
         </div>
 
@@ -47,8 +48,8 @@ export function Hero({
             <h1>{company.name}</h1>
           </div>
           <p className="hero-summary">
-            Five-year valuation case across DCF, trading comps and blended triangulation.
-            AI memo synthesises model output with peer-set commentary and a structured risk register.
+            Five-year valuation case: DCF with Gordon-growth and exit-multiple terminal values,
+            trading comps on the included peer median, and a sponsor-view LBO — blended into one range.
           </p>
         </div>
 
@@ -81,20 +82,33 @@ export function Hero({
 
       <div className="hero-right">
         <div className="kpi-stack">
-          <div className="kpi-card-hero">
-            <span className="kpi-label">{kpis.hasComps === false ? "Implied share price (DCF)" : "Implied share price (blended)"}</span>
-            <div className="kpi-value">
-              <span className="num-display">{kpis.sharePrice.toFixed(2)}</span>
-              <span className="unit">{company.currency}</span>
+          {kpis.spot != null && kpis.upside != null ? (
+            <div className="kpi-card-hero">
+              <span className="kpi-label">{kpis.hasComps === false ? "Implied share price (DCF)" : "Implied share price (blended)"}</span>
+              <div className="kpi-value">
+                <span className="num-display">{kpis.sharePrice.toFixed(2)}</span>
+                <span className="unit">{company.currency}</span>
+              </div>
+              <div className="kpi-sub">
+                <span>vs spot <span className="tabular">{kpis.spot.toFixed(2)}</span></span>
+                <span style={{ color: "var(--muted-soft)" }}>·</span>
+                <span className={"delta " + (kpis.upside >= 0 ? "up" : "down")}>
+                  {kpis.upside >= 0 ? "▲" : "▼"} {Math.abs(kpis.upside).toFixed(1)}% {kpis.upside >= 0 ? "upside" : "downside"}
+                </span>
+              </div>
             </div>
-            <div className="kpi-sub">
-              <span>vs spot <span className="tabular">{kpis.spot.toFixed(2)}</span></span>
-              <span style={{ color: "var(--muted-soft)" }}>·</span>
-              <span className={"delta " + (kpis.upside >= 0 ? "up" : "down")}>
-                {kpis.upside >= 0 ? "▲" : "▼"} {Math.abs(kpis.upside).toFixed(1)}% {kpis.upside >= 0 ? "upside" : "downside"}
-              </span>
+          ) : (
+            <div className="kpi-card-hero">
+              <span className="kpi-label">{kpis.hasComps === false ? "Implied equity value (DCF)" : "Implied equity value (blended)"}</span>
+              <div className="kpi-value">
+                <span className="num-display">{(kpis.equity / 1000).toFixed(1)}</span>
+                <span className="unit">B {company.currency}</span>
+              </div>
+              <div className="kpi-sub">
+                <span>Unlisted — no market price to compare against</span>
+              </div>
             </div>
-          </div>
+          )}
 
           <div className="kpi-card-hero">
             <span className="kpi-label">{kpis.hasComps === false ? "Enterprise value (DCF only)" : "Blended enterprise value"}</span>

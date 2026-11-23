@@ -72,7 +72,7 @@ export function FcfChart({ projection, ccy: _ccy }: Props) {
         {projection.map((p) => (
           <div key={p.year} className="cell">
             <span className="lbl">Year {p.year}</span>
-            <span className="val">{Math.round(p.revenue).toLocaleString()}</span>
+            <span className="val">{Math.round(p.revenue).toLocaleString("en-US")}</span>
             <span style={{ fontSize: 10.5, color: "var(--muted)" }}>
               g {p.revenueGrowth.toFixed(1)}% · m {p.ebitdaMargin.toFixed(1)}%
             </span>

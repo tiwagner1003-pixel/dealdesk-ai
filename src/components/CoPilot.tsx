@@ -8,8 +8,8 @@ import { formatMoney } from "@/lib/format";
 type Kpis = {
   ev: number;
   sharePrice: number;
-  spot?: number;
-  upside?: number;
+  spot?: number | null;
+  upside?: number | null;
   terminal: number;
   dcfEv?: number;
   compsEv?: number;
@@ -29,18 +29,20 @@ type Props = {
 };
 
 const STEP_SUGGESTIONS: Record<string, string[]> = {
-  setup:     ["What data do I need for the model?", "What WACC suits this sector?", "How do I pick a peer set?", "Fetch SEC data for this ticker"],
+  setup:     ["What data do I need for the model?", "What WACC suits this sector?", "How do I pick a peer set?", "Which figures drive the value most?"],
   model:     ["Is my WACC reasonable?", "Review my forecast assumptions", "What's driving FCF in year 5?", "Stress test terminal growth"],
   peers:     ["Suggest peers for this sector", "When should I exclude an outlier?", "How do my multiples compare?", "Normalize for growth differences"],
   valuation: ["Walk me through the football field", "Why is DCF vs comps diverging?", "What's the implied upside?", "Explain the WACC sensitivity"],
+  lbo:       ["What drives the sponsor IRR?", "Is this leverage financeable?", "How sensitive is the IRR to the exit multiple?", "What entry multiple still clears 20%?"],
   memo:      ["Draft the investment thesis", "What are the key IC risks?", "Write the deal summary", "What diligence questions remain?"],
 };
 
 const STEP_HINT: Record<string, string> = {
-  setup:     "Set the deal context — enter a ticker and fetch SEC data to auto-populate the model.",
+  setup:     "Set the deal context — pick a listed company to load its figures, or start a blank case for a private target.",
   model:     "Review assumptions. WACC and terminal growth are the biggest value drivers.",
   peers:     "Select at least 2-3 comparable companies. Exclude outliers that distort the median.",
   valuation: "DCF and comps are now triangulated. Check if the spread is defensible.",
+  lbo:       "Sponsor view on the same case — set entry, exit and financing and see what return the price still allows.",
   memo:      "All inputs are ready. Generate the IC memo or ask me to preview the thesis first.",
 };
 
@@ -49,7 +51,7 @@ export function CoPilot({ company, kpis, model, forecast, peers, scenario, activ
     role: "assistant" as const,
     body: `I've loaded your ${company.name} case. Here's a quick read:`,
     bullets: [
-      `Blended EV ${formatMoney(kpis.ev, company.currency)}${kpis.dcfEv ? ` (DCF ${formatMoney(kpis.dcfEv, company.currency)} / ${kpis.hasComps === false ? "no comps — DCF only" : `Comps ${formatMoney(kpis.compsEv ?? 0, company.currency)}`})` : ""}`,
+      `${kpis.hasComps === false ? "EV" : "Blended EV"} ${formatMoney(kpis.ev, company.currency)}${kpis.dcfEv ? ` (DCF ${formatMoney(kpis.dcfEv, company.currency)} / ${kpis.hasComps === false ? "no comps — DCF only" : `Comps ${formatMoney(kpis.compsEv ?? 0, company.currency)}`})` : ""}`,
       `Implied share price ${company.currency} ${kpis.sharePrice.toFixed(2)}${kpis.spot ? ` vs spot ${company.currency} ${kpis.spot.toFixed(2)} → ${kpis.upside && kpis.upside > 0 ? "+" : ""}${kpis.upside?.toFixed(1)}%` : ""}`,
       `Terminal value ${kpis.terminal.toFixed(0)}% of DCF EV — key sensitivity lever`,
     ],
@@ -101,6 +103,7 @@ export function CoPilot({ company, kpis, model, forecast, peers, scenario, activ
       });
       const data = await response.json();
       if (!response.ok) throw new Error(data.error || "Co-Pilot request failed.");
+      if (data.mode === "rules") setAiLive(false); // Schlüssel gesetzt, aber Aufruf gescheitert
       setMessages((m) => [...m, {
         role: "assistant",
         body: data.reply || "No reply.",

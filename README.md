@@ -1,102 +1,101 @@
-# DealDesk AI
+# DealDesk
 
-DealDesk AI is a finance analyst workbench for company analysis, financial modeling, valuation, peer groups, and investment memo creation.
+**A browser-based valuation workbench: DCF, trading comps, a sponsor-view LBO and an investment memo — for listed and private companies, in one workflow.**
 
-The goal is to build a portfolio-grade project with direct relevance to finance, M&A, consulting, valuation, and investment banking workflows.
+Live demo: **https://dealdesk-ai-cyan.vercel.app** · Methodology: [/methodology](https://dealdesk-ai-cyan.vercel.app/methodology)
 
-## MVP Scope
+No sign-up. Cases are stored in your browser; nothing is sent to a server except the optional AI requests.
 
-The first version includes:
+---
 
-- Company case setup
-- Editable financial model assumptions
-- DCF-style enterprise value calculation
-- Trading comps using peer EV/Revenue and EV/EBITDA multiples
-- Editable peer group table
-- Five-year projection table
-- Blended valuation output
-- Investment memo preview
+## What it does
 
-## Product Direction
+A case runs through six steps, each a tab in the workspace:
 
-The intended workflow:
+| Step | What happens |
+|---|---|
+| **01 Case setup** | Pick a listed company from the market database (~80 names, US/EU) or start a blank private-company case. |
+| **02 Operating model** | Five-year forecast of revenue growth, EBITDA margin, D&A, capex, working capital and tax; WACC and terminal growth. |
+| **03 Peer group** | Editable peer set with EV/Revenue and EV/EBITDA; peers can be included or excluded individually. |
+| **04 Valuation** | DCF with Gordon-growth and exit-multiple terminal values, comps on the peer median, blended value, football field and a WACC × terminal-growth sensitivity grid. |
+| **05 LBO** | Sponsor view on the same operating case: entry/exit multiple, leverage, cost of debt, hold period → IRR, MOIC, debt paydown and a value-creation bridge. |
+| **06 Memo** | Investment memo draft from the model figures (Claude if an API key is configured, rule-based otherwise); export to Excel and PowerPoint. |
 
-1. Enter company and case information.
-2. Build or import financial assumptions.
-3. Review DCF and trading comps valuation.
-4. Build a peer group.
-5. Generate an investment memo.
-6. Export a pitch deck or PowerPoint.
+Around the workflow: a dashboard with a live watchlist, a case library, side-by-side case comparison, and a co-pilot that answers questions about the open case.
 
-## Future Features
+## Valuation logic in brief
 
-- PDF upload for annual reports and investor presentations
-- AI-based financial statement extraction
-- Peer group suggestions by sector, geography, size, and margin profile
-- Sensitivity tables
-- Football field valuation chart
-- Investment memo generation with citations
-- PowerPoint export
-- Supabase persistence
-- Vercel deployment
+- **Free cash flow** = EBIT × (1 − tax) + D&A − capex − ΔNWC, with NWC investment as a share of incremental revenue.
+- **DCF**: five explicit years discounted at WACC (end-of-year). Terminal value is the average of Gordon growth and an exit multiple on final-year EBITDA.
+- **Comps**: median EV/Revenue and EV/EBITDA of the included peers, applied to the target's LTM figures.
+- **Blended EV** = mean of DCF, EV/Revenue and EV/EBITDA; equity value = EV − net debt; per-share value only for listed companies.
+- **LBO**: entry at the market EV/EBITDA for listed targets (a sponsor does not buy below the share price), otherwise at the peer median. Debt sized at 5.5× EBITDA, one tranche with a full cash sweep and revolver for negative years. Exit at the entry multiple by default — no multiple expansion assumed. The bridge splits equity gains into EBITDA growth, multiple change and deleveraging and sums exactly to the exit equity.
 
-## Development Agents
+Every formula, its assumptions and the known limitations are written out on the [methodology page](https://dealdesk-ai-cyan.vercel.app/methodology).
 
-`AGENTS.md` defines the project roles for building DealDesk AI:
+## Tech stack
 
-- Finance Product Strategist
-- Valuation & Modeling Agent
-- Analyst UX/UI Agent
-- AI Finance Workflow Agent
-- Full-Stack Engineer
-- QA & Deployment Agent
+- **Next.js 16** (App Router) · **React 19** · **TypeScript**
+- Valuation engine in plain TypeScript (`src/lib/finance.ts`, `src/lib/lbo.ts`), no runtime dependencies, unit-tested with `node --test`
+- Excel export with formatting via `xlsx-js-style`, PowerPoint export via `pptxgenjs` — both generated client-side
+- **Anthropic Claude** for memo drafting and co-pilot answers; both AI routes falls back to a rule-based answer if no key is set or the API call fails
+- Market data: Twelve Data / FMP if keys are configured, Yahoo Finance otherwise, with a static snapshot as last resort; charts via TradingView, loaded only on consent
+- Deployed on Vercel; GitHub Actions runs typecheck, tests and build on every push
 
-These are development roles, not user-facing app agents. They help structure future product decisions and implementation work.
+## Project structure
 
-## Local Setup
+```
+src/
+  app/
+    page.tsx                 Workspace (dashboard, cases, workflow)
+    methodology/             Methodology page
+    api/
+      market-data/           Quotes: Twelve Data → FMP → Yahoo → snapshot
+      price-history/         Chart series for the watchlist
+      ai-memo/, ai-chat/     Claude with rule-based fallback
+  components/                UI: workflow panels, LBO panel, rails, charts
+  lib/
+    finance.ts               Forecast, FCF, DCF, comps, blending, sensitivities
+    lbo.ts                   LBO engine and case-derived defaults
+    *.test.ts                Unit tests for both engines
+    exportExcel.ts           Formatted multi-sheet Excel model (incl. LBO)
+    exportPpt.ts             PowerPoint deck
+    marketDb.ts              Market database snapshot
+    server/yahoo.ts          Yahoo chart client with caching and minor-unit handling
+```
 
-Install dependencies:
+## Running locally
 
 ```bash
 npm install
+npm run dev        # http://localhost:3000
 ```
 
-Start development server:
+Checks (the same ones CI runs):
 
 ```bash
-npm run dev
-```
-
-Open:
-
-```text
-http://localhost:3000
-```
-
-Build check:
-
-```bash
+npm run typecheck
+npm test
 npm run build
 ```
 
-Optional market data keys in `.env.local`:
+Requires Node 22.18 or later (CI runs Node 24); the tests use Node's built-in TypeScript type stripping.
 
-```bash
-TWELVE_DATA_API_KEY=your_twelve_data_key
-FMP_API_KEY=your_fmp_key
-SEC_USER_AGENT="DealDesk AI contact@example.com"
-```
+### Environment variables
 
-`/api/market-data` uses Twelve Data first, then FMP if configured, then Stooq/Yahoo fallbacks so the demo still works without keys. Responses are cached for five minutes and the UI shows whether data is live or a fallback.
+All optional — without any of them the app runs fully, with rule-based AI answers and Yahoo / snapshot market data. Put them in `.env.local`:
 
-## Positioning
+| Variable | Used for |
+|---|---|
+| `ANTHROPIC_API_KEY` | Memo drafting and co-pilot answers with Claude |
+| `TWELVE_DATA_API_KEY` | Primary source for live quotes |
+| `FMP_API_KEY` | Secondary source for live quotes |
+| `NEXT_PUBLIC_SITE_URL` | Canonical URL for metadata and the Open Graph image |
 
-DealDesk AI is designed as a focused finance project, separate from Study AI.
+## Data and limitations
 
-It should demonstrate:
+- The market database is a snapshot (Yahoo Finance, November 2026). Live quotes replace it where a source responds; otherwise the interface marks prices as sample prices.
+- Unlisted companies (e.g. Stripe, OpenAI) carry estimates from public reporting and are valued without a share price.
+- The DCF uses end-of-year discounting and a constant WACC; the LBO has one debt tranche, no fees and no minimum cash. The full list is on the methodology page.
 
-- Finance workflow understanding
-- Modeling and valuation logic
-- Product thinking for analyst tools
-- Clean UI for dense financial information
-- A path toward AI-assisted finance workflows
+DealDesk is an educational project. Nothing in it is investment advice.

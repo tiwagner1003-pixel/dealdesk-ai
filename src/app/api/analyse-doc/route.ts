@@ -135,7 +135,8 @@ export async function POST(request: NextRequest) {
 
     return NextResponse.json({ result });
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Analysis failed";
-    return NextResponse.json({ error: message }, { status: 500 });
+    // Den rohen API-Fehler nur ins Log, nicht in die Seite.
+    console.warn(`[analyse-doc] failed: ${error instanceof Error ? error.message : error}`);
+    return NextResponse.json({ error: "The document could not be analysed. Try a text-based PDF under 20 MB." }, { status: 502 });
   }
 }

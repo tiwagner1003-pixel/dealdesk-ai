@@ -35,7 +35,7 @@ export function MemoPanel({
     <section className="panel">
       <div className="panel-head">
         <div className="head-title">
-          <span className="eyebrow">Workflow · Step 05 · Investment Memo</span>
+          <span className="eyebrow">Workflow · Step 06 · Investment Memo</span>
           <h2>{company.name} — initial view</h2>
         </div>
         <button className="btn primary" onClick={onGenerate} disabled={generating}>

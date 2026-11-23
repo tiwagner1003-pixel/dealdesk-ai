@@ -24,6 +24,7 @@ import { Ico } from "./icons";
 import { calculateDcf, calculateProjection, median, pct, compsOf, blendEv,
   INITIAL_COMPANY, INITIAL_MODEL, INITIAL_FORECAST, INITIAL_PEERS } from "@/lib/finance";
 import { exportExcelModel } from "@/lib/exportExcel";
+import { calculateLbo, defaultLboAssumptions, type LboAssumptions, type LboOperating } from "@/lib/lbo";
 import { exportPowerPointDeck } from "@/lib/exportPpt";
 import type { CompanyInput, ModelInput, ForecastYear, Peer, Scenario, WorkspaceTab, AiMemo, DcfOutput } from "@/lib/types";
 import { MARKET_DB, suggestPeers, findTicker, type TickerInfo } from "@/lib/marketDb";
@@ -44,6 +45,8 @@ type CaseState = {
   tab: WorkspaceTab | "lbo";
   aiMemo: AiMemo | null;
   generating: boolean;
+  /** Annahmen des Fonds im LBO-Schritt; null = aus dem Fall abgeleitet. */
+  lbo?: LboAssumptions | null;
   // library meta (denormalised — derived but cached)
   status: "Draft" | "In review" | "Approved" | "Archived";
   author: string;
@@ -202,6 +205,39 @@ function seedCase(id: string, ticker: string, tpl: SectorTemplate, scenario: Sce
   };
 }
 
+/**
+ * Ein leerer Fall aus einer Vorlage. Bis zum 23.11.2026 legte „New case“ still
+ * eine Kopie von Adyen an — mit Adyens Umsatz, Aktienzahl, Peers und Kurs unter
+ * dem Namen „New case“. Jetzt: runde Platzhalterzahlen, keine Börsennotiz,
+ * keine Peers, die Kapitalkosten der gewählten Vorlage.
+ */
+function blankCase(id: string, tpl: SectorTemplate, author: string, updated: string): CaseState {
+  return {
+    id,
+    company: { name: "New case", ticker: "", exchange: "", sector: tpl.name, region: "Europe", currency: "EUR" },
+    model: {
+      revenue: 1000, depreciationPercent: 4, taxRate: 25, capexPercent: 5, nwcPercent: 2,
+      netDebt: 0, shares: 100,
+      wacc: tpl.wacc, terminalGrowth: tpl.terminal, exitMultiple: tpl.exitMultiple,
+    },
+    forecast: [
+      { year: 1, revenueGrowth: 8, ebitdaMargin: 20 },
+      { year: 2, revenueGrowth: 7, ebitdaMargin: 21 },
+      { year: 3, revenueGrowth: 6, ebitdaMargin: 22 },
+      { year: 4, revenueGrowth: 5, ebitdaMargin: 22 },
+      { year: 5, revenueGrowth: 4, ebitdaMargin: 22 },
+    ],
+    peers: [], scenario: "base", tab: "setup",
+    aiMemo: null, generating: false, status: "Draft", author, updated, lbo: null,
+  };
+}
+
+/** Börsenkurs, wenn es einen gibt — für Private und leere Fälle null, nie ein erfundener. */
+function spotOf(ticker: string) {
+  const t = findTicker(ticker);
+  return t && !t.priv && t.price > 0 ? t.price : null;
+}
+
 const TPL_FIN  = SECTOR_TEMPLATES.find((t) => t.id === "fintech")!;
 const TPL_SAAS = SECTOR_TEMPLATES.find((t) => t.id === "saas")!;
 const TPL_AI   = SECTOR_TEMPLATES.find((t) => t.id === "ai")!;
@@ -211,18 +247,31 @@ const TPL_BNK  = SECTOR_TEMPLATES.find((t) => t.id === "bank")!;
 const TPL_ENE  = SECTOR_TEMPLATES.find((t) => t.id === "energy")!;
 const TPL_IND  = SECTOR_TEMPLATES.find((t) => t.id === "indust")!;
 
+/** Vorlage nach Branche — vorher bekam jeder neue Fall die FinTech-Kapitalkosten. */
+function templateFor(t: TickerInfo): SectorTemplate {
+  switch (t.sector) {
+    case "FinTech": return TPL_FIN;
+    case "Banks": case "AssetMgmt": return TPL_BNK;
+    case "Energy": return TPL_ENE;
+    case "Pharma": return TPL_PHA;
+    case "Luxury": case "Consumer": case "Retail": return TPL_LUX;
+    case "Industrial": case "Auto": return TPL_IND;
+    case "Semis": return t.subSector?.includes("AI") ? TPL_AI : TPL_SAAS;
+    default: return TPL_SAAS;
+  }
+}
+
 /**
  * Stand der Beispielfälle. Wer ihn hochsetzt, ersetzt bei wiederkehrenden
  * Besuchern alle Beispielfälle durch die aktuelle Fassung — eigene Fälle bleiben.
  * Hochsetzen, sobald sich Fallplan, Marktdaten oder Peers der Beispiele ändern;
  * sonst rechnet jeder, der die Seite schon kannte, mit dem alten Stand weiter.
  */
-const BEISPIEL_STAND = "2026-11-23";
+const BEISPIEL_STAND = "2026-11-23.2";
 
 const SEED_CASES: CaseState[] = [
   seedCase("adyen",   "ADYEN.AS", TPL_FIN,  "base",     "In review", "Luca Schmidt",      "14:08 today"),
   seedCase("stripe",  "STRIPE",   TPL_FIN,  "upside",   "Draft",     "Luca Schmidt",      "11:08 today"),
-  seedCase("klarna",  "KLARN.IPO",TPL_FIN,  "downside", "Draft",     "Anna Vogel",        "Yesterday 16:42"),
   seedCase("nvda",    "NVDA",     TPL_AI,   "upside",   "Approved",  "Sebastian Krüger",  "Yesterday 13:18"),
   seedCase("asml",    "ASML.AS",  TPL_SAAS, "base",     "In review", "Marie Forster",     "Yesterday 09:14"),
   seedCase("lvmh",    "MC.PA",    TPL_LUX,  "base",     "Approved",  "Anna Vogel",        "May 24"),
@@ -249,7 +298,7 @@ export function App() {
   const [theme, setTheme] = useState<"light" | "dark">("light");
   const [cases, setCases] = useState<CaseState[]>(SEED_CASES);
   const [activeCase, setActiveCase] = useState("adyen");
-  const [openCases, setOpenCases] = useState<string[]>(["adyen", "stripe", "klarna"]);
+  const [openCases, setOpenCases] = useState<string[]>(["adyen", "stripe", "nvda"]);
   // Speichern im Browser: erst nach dem Laden schreiben, sonst überschreiben
   // die Beispielfälle beim ersten Rendern den gespeicherten Stand.
   const [loaded, setLoaded] = useState(false);
@@ -269,10 +318,15 @@ export function App() {
       const veraltet = stored.beispielStand !== BEISPIEL_STAND;
       const frisch = new Map(SEED_CASES.map((c) => [c.id, c]));
       const bekannt = new Set(stored.cases.map((c) => c.id));
-      setCases([...stored.cases.map((c) => (veraltet && frisch.get(c.id)) || { ...c, generating: false }),
+      // Eigene Fälle tragen die Kennung „case-…“. Ein Beispiel, das es nicht mehr gibt
+      // (Klarna seit dem 23.11.2026), fällt bei einem neuen Stand mit heraus.
+      const behalten = stored.cases.filter((c) => !veraltet || c.id.startsWith("case-") || frisch.has(c.id));
+      setCases([...behalten.map((c) => (veraltet && frisch.get(c.id)) || { ...c, generating: false }),
                 ...SEED_CASES.filter((c) => !bekannt.has(c.id))]);
-      setOpenCases(stored.openCases);
-      setActiveCase(stored.activeCase);
+      const ids = new Set([...behalten.map((c) => c.id), ...SEED_CASES.map((c) => c.id)]);
+      const offen = stored.openCases.filter((id) => ids.has(id));
+      setOpenCases(offen);
+      setActiveCase(ids.has(stored.activeCase) ? stored.activeCase : (offen[0] ?? "adyen"));
       setTheme(stored.theme);
       setSaveState("saved");
     }
@@ -292,7 +346,7 @@ export function App() {
     if (!window.confirm("Discard all your cases and changes in this browser and restore the sample cases?")) return;
     clearState();
     setCases(SEED_CASES);
-    setOpenCases(["adyen", "stripe", "klarna"]);
+    setOpenCases(["adyen", "stripe", "nvda"]);
     setActiveCase("adyen");
     setView("dashboard");
   }
@@ -322,9 +376,9 @@ export function App() {
   }
   function newCase(ticker?: TickerInfo, tpl?: SectorTemplate) {
     const id = "case-" + Date.now();
-    const c = seedCase(id, ticker?.ticker ?? "ADYEN.AS", tpl ?? TPL_FIN, "base",
-                       "Draft", user.name, stamp());
-    if (!ticker) c.company.name = "New case";
+    const c = ticker
+      ? seedCase(id, ticker.ticker, tpl ?? templateFor(ticker), "base", "Draft", user.name, stamp())
+      : blankCase(id, tpl ?? TPL_IND, user.name, stamp());
     setCases((cs) => [c, ...cs]);
     setOpenCases((o) => [...o, id]);
     setActiveCase(id);
@@ -347,7 +401,6 @@ export function App() {
 
   // recent/library cases — derive from CaseState[]
   const libCases: LibraryCase[] = cases.map((c) => {
-    const t = findTicker(c.company.ticker);
     const k = kpiOf(c);
     return {
       id: c.id, name: c.company.name, ticker: c.company.ticker, sector: c.company.sector,
@@ -355,7 +408,7 @@ export function App() {
       author: c.author, updated: c.updated,
       ev: k.ev,
       // Ohne Börsenkurs gibt es keinen Abstand zum Kurs, nur einen zum eigenen Abschlag.
-      upside: t && !t.priv ? k.upside : undefined,
+      upside: k.upside ?? undefined,
     };
   });
   const recent: RecentCase[] = libCases.map((c) => ({
@@ -421,6 +474,7 @@ export function App() {
               kpis={kpiOf(cur)}
               company={cur.company}
               valuationRows={ffOf(cur)}
+              context={{ model: cur.model, forecast: cur.forecast, peers: cur.peers, scenario: cur.scenario, activeTab: cur.tab }}
             />
           )}
         </div>
@@ -480,8 +534,8 @@ function Workspace({ cur, onPatch, compareOn, setCompareOn }: {
   const blendedEv = blendEv(dcf.enterpriseValue, comps);
   const blendedEq = blendedEv - model.netDebt;
   const blendedSp = model.shares > 0 ? blendedEq / model.shares : 0;
-  const spot = t && !t.priv ? t.price : blendedSp * 0.88;
-  const upside = spot > 0 ? ((blendedSp / spot) - 1) * 100 : 0;
+  const spot = t && !t.priv && t.price > 0 ? t.price : null;
+  const upside = spot ? ((blendedSp / spot) - 1) * 100 : null;
   const dcfRange = [dcfD.enterpriseValue, dcfB.enterpriseValue, dcfU.enterpriseValue];
   const ffRows = [
     { label: "DCF",           low: Math.min(...dcfRange), high: Math.max(...dcfRange) },
@@ -497,6 +551,22 @@ function Workspace({ cur, onPatch, compareOn, setCompareOn }: {
     wacc,
     values: sensCols.map((tg) => calculateDcf({ ...model, wacc, terminalGrowth: tg }, forecast, scenario).sharePrice),
   }));
+  const lboOperating: LboOperating = {
+    entryRevenue: model.revenue, entryEbitda: currentEbitda,
+    daPct: model.depreciationPercent, capexPct: model.capexPercent,
+    nwcPct: model.nwcPercent, taxRate: model.taxRate,
+  };
+  const lboDefaults = defaultLboAssumptions({
+    marketEvEbitda: seedTicker && !seedTicker.priv ? seedTicker.evEbitda : null,
+    peerEvEbitda: hasComps ? medEbitda : null,
+    forecast,
+  });
+  const { entrySource: lboEntrySource, ...lboDerived } = lboDefaults;
+  const lboAssumptions: LboAssumptions = cur.lbo ?? lboDerived;
+
+  const lboExport = currentEbitda > 0
+    ? (() => { const inputs = { ...lboOperating, ...lboAssumptions }; return { inputs, out: calculateLbo(inputs) }; })()
+    : null;
   const exportCtx = {
     company, model, forecast, peers, scenario, dcf,
     compsEvRevenue: compsRev,
@@ -513,6 +583,7 @@ function Workspace({ cur, onPatch, compareOn, setCompareOn }: {
     terminalGrowthColumns: sensCols,
     includedPeers: valuationPeers,
     hasComps,
+    lbo: lboExport,
   };
 
   const kpis = {
@@ -647,7 +718,10 @@ function Workspace({ cur, onPatch, compareOn, setCompareOn }: {
             onModelUpdate={(p) => onPatch({ model: { ...model, ...p } })} ccy={company.currency}/>
         </>
       )}
-      {tab === "lbo" && <LboPanel company={company}/>}
+      {tab === "lbo" && (
+        <LboPanel company={company} operating={lboOperating} assumptions={lboAssumptions}
+          isDefault={!cur.lbo} entrySource={cur.lbo ? "custom" : lboEntrySource} onChange={(a) => onPatch({ lbo: a })} onReset={() => onPatch({ lbo: null })}/>
+      )}
       {tab === "memo" && (
         <MemoPanel company={company} scenario={scenario}
           dcf={dcf} terminalShare={dcf.terminalShare}
@@ -678,9 +752,8 @@ function kpiOf(c: CaseState) {
   const ev = blendEv(dcf.enterpriseValue, comps);
   const eq = ev - c.model.netDebt;
   const sp = c.model.shares > 0 ? eq / c.model.shares : 0;
-  const t = findTicker(c.company.ticker);
-  const spot = t && !t.priv ? t.price : sp * 0.88;
-  return { sharePrice: sp, spot, upside: spot > 0 ? ((sp / spot) - 1) * 100 : 0,
+  const spot = spotOf(c.company.ticker);
+  return { sharePrice: sp, spot, upside: spot ? ((sp / spot) - 1) * 100 : null,
     ev, equity: eq, dcfEv: dcf.enterpriseValue,
     compsEv: comps.avg, hasComps: comps.has,
     terminal: dcf.terminalShare, evEbitda: comps.medEbitda, evRevenue: comps.medRev };

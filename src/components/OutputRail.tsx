@@ -71,23 +71,6 @@ export function OutputRail({ kpis, company, valuationRows }: Props) {
         })}
       </div>
 
-      <div className="rail-section">
-        <h3>Audit trail</h3>
-        <div style={{ display: "grid", gap: 10, fontSize: 12.5 }}>
-          {[
-            ["WACC adjusted", "9.0% → 9.5%", "14:08"],
-            ["Peer added", "Worldline (WLN.PA)", "13:55"],
-            ["Scenario", "base → upside", "13:42"],
-            ["PDF imported", "Q3-2025 results", "12:30"],
-          ].map((row, i) => (
-            <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr auto", gap: 4 }}>
-              <span style={{ color: "var(--text)", fontWeight: 500 }}>{row[0]}</span>
-              <span className="num muted" style={{ fontSize: 11 }}>{row[2]}</span>
-              <span className="muted num" style={{ fontSize: 11.5, gridColumn: "1 / -1" }}>{row[1]}</span>
-            </div>
-          ))}
-        </div>
-      </div>
     </>
   );
 }
