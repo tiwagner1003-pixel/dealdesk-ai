@@ -43,9 +43,19 @@ export const MARKET_DB: TickerInfo[] = [
   { ticker: "WLN.PA",   name: "Worldline",    exchange: "PAR",  sector: "FinTech",   subSector: "Payments",      ccy: "EUR", price: 8.92,    prevClose: 9.04,    mktCap: 2520,  netDebt: 3200,  shares: 282,  revenue: 4610,  ebitda: 1244, pe: 9.4,  evEbitda: 5.9,  evRev: 1.4, beta: 1.62, divYield: 0,    range52w: [2.84, 12.6] },
 
   { ticker: "MSFT",     name: "Microsoft",    exchange: "NSDQ", sector: "Software",  subSector: "Cloud & AI",    ccy: "USD", price: 478.20,  prevClose: 474.10,  mktCap: 3550000, netDebt: -78000, shares: 7420, revenue: 261800, ebitda: 130900, pe: 36.4, evEbitda: 26.5, evRev: 13.3, beta: 0.92, divYield: 0.7, range52w: [402, 498] },
-  { ticker: "NVDA",     name: "NVIDIA",       exchange: "NSDQ", sector: "Semis",     subSector: "AI Compute",    ccy: "USD", price: 142.80,  prevClose: 138.60,  mktCap: 3510000, netDebt: -28000, shares: 24580, revenue: 130500, ebitda: 84800, pe: 60.4, evEbitda: 41.1, evRev: 26.7, beta: 1.78, divYield: 0,    range52w: [85.4, 153.1] },
+  // NVIDIA: GJ 2026 (bis 25.01.2026) Umsatz 215,9 Mrd. USD, operatives Ergebnis 130,4 Mrd.,
+  // Abschreibungen 2,8 Mrd., EPS 4,90 USD. Bilanz zum 25.10.2026: Kasse und Wertpapiere
+  // 97,7 Mrd. (davon 44,2 Mrd. börsennotierte Beteiligungen), Schulden 32,4 Mrd.;
+  // 24,19 Mrd. Aktien verwässert. Kurs Yahoo 23.11.2026.
+  { ticker: "NVDA",     name: "NVIDIA",       exchange: "NSDQ", sector: "Semis",     subSector: "AI Compute",    ccy: "USD", price: 168.27,  prevClose: 125.53,  mktCap: 4069778, netDebt: -65360, shares: 24186, revenue: 215938, ebitda: 133230, pe: 34.3, evEbitda: 30.1, evRev: 18.5, beta: 1.78, divYield: 0,    range52w: [124.5, 243.37] },
   { ticker: "CRM",      name: "Salesforce",   exchange: "NYSE", sector: "Software",  subSector: "CRM / SaaS",    ccy: "USD", price: 318.60,  prevClose: 314.20,  mktCap: 305000, netDebt: -8200,  shares: 957,  revenue: 37800, ebitda: 11340, pe: 42.6, evEbitda: 26.2, evRev: 7.8, beta: 1.24, divYield: 0.5, range52w: [212, 348] },
-  { ticker: "SNOW",     name: "Snowflake",    exchange: "NYSE", sector: "Software",  subSector: "Data Cloud",    ccy: "USD", price: 168.40,  prevClose: 165.10,  mktCap: 56400, netDebt: -3800,  shares: 335,  revenue: 3640,  ebitda: 218,  pe: 0,    evEbitda: 0,    evRev: 14.4, beta: 1.05, divYield: 0,    range52w: [108, 198] },
+  // Snowflake: GJ 2026 (bis 31.01.2026) Umsatz 4.684 Mio. USD. EBITDA bereinigt, wie
+  // Snowflake berichtet: operatives Ergebnis non-GAAP 490 Mio. plus Abschreibungen ohne
+  // Übernahmen 110 Mio. — OHNE aktienbasierte Vergütung (1,6 Mrd., rund ein Drittel des
+  // Umsatzes). Nach GAAP lag der operative Verlust bei 1,44 Mrd. Bilanz zum 31.07.2026:
+  // Kasse und Anlagen 4,33 Mrd., Wandelanleihen 2,28 Mrd.; 377,9 Mio. Aktien verwässert
+  // (non-GAAP, enthält die Verwässerung aus Aktienvergütung). Kurs Yahoo 23.11.2026.
+  { ticker: "SNOW",     name: "Snowflake",    exchange: "NYSE", sector: "Software",  subSector: "Data Cloud",    ccy: "USD", price: 276.22,  prevClose: 254.82,  mktCap: 104384, netDebt: -2045,  shares: 377.9, revenue: 4684,  ebitda: 600,  pe: 0,    evEbitda: 170.6, evRev: 21.8, beta: 1.05, divYield: 0,    range52w: [118.3, 384.56] },
   { ticker: "DDOG",     name: "Datadog",      exchange: "NSDQ", sector: "Software",  subSector: "Observability", ccy: "USD", price: 162.20,  prevClose: 158.90,  mktCap: 55200, netDebt: -2900,  shares: 340,  revenue: 2680,  ebitda: 432,  pe: 84.2, evEbitda: 32.6, evRev: 19.5, beta: 1.18, divYield: 0,    range52w: [108, 178] },
   { ticker: "CRWD",     name: "CrowdStrike",  exchange: "NSDQ", sector: "Software",  subSector: "Cybersecurity", ccy: "USD", price: 384.50,  prevClose: 378.20,  mktCap: 93800, netDebt: -3400,  shares: 244,  revenue: 3950,  ebitda: 728,  pe: 92.6, evEbitda: 35.8, evRev: 22.8, beta: 1.21, divYield: 0,    range52w: [212, 412] },
   { ticker: "PLTR",     name: "Palantir",     exchange: "NYSE", sector: "Software",  subSector: "Data Analytics",ccy: "USD", price: 78.40,   prevClose: 76.20,   mktCap: 178000, netDebt: -4100, shares: 2270, revenue: 2880,  ebitda: 715,  pe: 168.4,evEbitda: 38.4, evRev: 24.8, beta: 1.82, divYield: 0,    range52w: [22.1, 88.6] },
@@ -61,11 +71,19 @@ export const MARKET_DB: TickerInfo[] = [
   { ticker: "SIE.DE",   name: "Siemens",      exchange: "FRA",  sector: "Industrial",subSector: "Industrial Tech",ccy:"EUR", price: 192.40,  prevClose: 190.10,  mktCap: 154000, netDebt: 14000,  shares: 800,  revenue: 75600, ebitda: 11340, pe: 17.4, evEbitda: 14.8, evRev: 2.2, beta: 1.24, divYield: 2.4, range52w: [152, 198] },
   { ticker: "MC.PA",    name: "LVMH",         exchange: "PAR",  sector: "Luxury",    subSector: "Luxury Goods",  ccy: "EUR", price: 642.80,  prevClose: 638.40,  mktCap: 322000, netDebt: 9800,   shares: 501,  revenue: 84200, ebitda: 25260, pe: 24.2, evEbitda: 13.2, evRev: 3.9, beta: 1.18, divYield: 1.8, range52w: [566, 798] },
   { ticker: "OR.PA",    name: "L'Oréal",      exchange: "PAR",  sector: "Consumer",  subSector: "Beauty",        ccy: "EUR", price: 384.20,  prevClose: 380.60,  mktCap: 206000, netDebt: 2400,   shares: 537,  revenue: 41200, ebitda: 9890, pe: 31.6, evEbitda: 21.0, evRev: 5.1, beta: 0.84, divYield: 1.7, range52w: [322, 462] },
-  { ticker: "NOVO-B.CO",name: "Novo Nordisk", exchange: "CPH",  sector: "Pharma",    subSector: "Pharma",        ccy: "DKK", price: 728.40,  prevClose: 718.20,  mktCap: 3250000, netDebt: -78000, shares: 4460, revenue: 245800, ebitda: 122900, pe: 28.4, evEbitda: 25.8, evRev: 12.9, beta: 0.42, divYield: 1.2, range52w: [488, 1042] },
+  // Novo Nordisk: 2025 Umsatz 309.064 Mio. DKK, EBITDA 149.640 Mio. (mit rund 8 Mrd.
+  // Umbaukosten), EPS 23,03 DKK, Dividende 11,70 DKK. Nettoverschuldung Ende 2025
+  // 95.424 Mio. (seit der Catalent-Übernahme); 4.436 Mio. Aktien verwässert (9M 2026).
+  // Kurs Yahoo 23.11.2026.
+  { ticker: "NOVO-B.CO",name: "Novo Nordisk", exchange: "CPH",  sector: "Pharma",    subSector: "Pharma",        ccy: "DKK", price: 266.65,  prevClose: 264.50,  mktCap: 1182859, netDebt: 95424, shares: 4436, revenue: 309064, ebitda: 149640, pe: 11.6, evEbitda: 8.5, evRev: 4.1, beta: 0.42, divYield: 4.4,  range52w: [224.25, 409.95] },
 
   { ticker: "JPM",      name: "JPMorgan",     exchange: "NYSE", sector: "Banks",     subSector: "Universal Bank",ccy: "USD", price: 242.80,  prevClose: 240.40,  mktCap: 678000, netDebt: 0,     shares: 2790, revenue: 168200, ebitda: 84100, pe: 13.4, evEbitda: 8.1,  evRev: 4.0, beta: 1.06, divYield: 2.1, range52w: [188, 248] },
   { ticker: "GS",       name: "Goldman Sachs",exchange: "NYSE", sector: "Banks",     subSector: "Investment Bank",ccy:"USD", price: 612.40,  prevClose: 608.20,  mktCap: 192000, netDebt: 0,     shares: 314,  revenue: 51800, ebitda: 18800, pe: 16.2, evEbitda: 10.2, evRev: 3.7, beta: 1.32, divYield: 2.0, range52w: [438, 642] },
-  { ticker: "BLK",      name: "BlackRock",    exchange: "NYSE", sector: "AssetMgmt", subSector: "Asset Manager", ccy: "USD", price: 1078.20, prevClose: 1068.40, mktCap: 162000, netDebt: -8400, shares: 150,  revenue: 21200, ebitda: 9540, pe: 24.4, evEbitda: 16.2, evRev: 7.3, beta: 1.18, divYield: 1.9, range52w: [768, 1108] },
+  // BlackRock: 2025 Umsatz 24.216 Mio. USD, operatives Ergebnis „as adjusted“ 9.600 Mio.
+  // (vor Abschreibung auf Übernahmen, also näher an EBITA als an EBITDA), EPS GAAP
+  // 35,31 USD, Quartalsdividende 5,73 USD. Kasse 12.877 Mio. gegen Kredite 12.740 Mio.
+  // zum 30.09.2026; 164,5 Mio. Aktien verwässert einschließlich Subco Units. Kurs Yahoo 23.11.2026.
+  { ticker: "BLK",      name: "BlackRock",    exchange: "NYSE", sector: "AssetMgmt", subSector: "Asset Manager", ccy: "USD", price: 1155.88, prevClose: 1101.72, mktCap: 190142, netDebt: -137,  shares: 164.5, revenue: 24216, ebitda: 9600, pe: 32.7, evEbitda: 19.8, evRev: 7.8, beta: 1.18, divYield: 2.0,  range52w: [917.39, 1242.12] },
 
   { ticker: "STRIPE",   name: "Stripe",       exchange: "PRIV", sector: "FinTech",   subSector: "Payments",      ccy: "USD", price: 0, prevClose: 0, mktCap: 91500, netDebt: -2800, shares: 0, revenue: 22800, ebitda: 6840, pe: 0, evEbitda: 13.0, evRev: 3.9, beta: 0, divYield: 0, range52w: [0, 0], priv: true },
   { ticker: "KLARN.IPO",name: "Klarna",       exchange: "PRIV", sector: "FinTech",   subSector: "BNPL",          ccy: "USD", price: 0, prevClose: 0, mktCap: 14800, netDebt: 420,   shares: 0, revenue: 2280,  ebitda: 184,  pe: 0, evEbitda: 82.6, evRev: 6.7, beta: 0, divYield: 0, range52w: [0, 0], priv: true },

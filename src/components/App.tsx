@@ -55,7 +55,34 @@ type CaseState = {
  * Teilbranche, Marge aus dem Vorjahr) ein schiefes Bild ergäbe. Die Zahlen folgen
  * den Angaben des Unternehmens, nicht einer eigenen Prognose.
  */
-const FALLPLAN: Record<string, { forecast: ForecastYear[]; ohnePeers?: string[] }> = {
+type Fallplan = {
+  /** Fertige Prognose, Jahr für Jahr. */
+  forecast?: ForecastYear[];
+  /** Belegte Jahre als [Wachstum, EBITDA-Marge]; der Rest wird nach `fortschreiben` ergänzt. */
+  belegt?: [number, number][];
+  /** Vorgeschlagene Peers, die angezeigt werden, aber nicht zählen. */
+  ohnePeers?: string[];
+};
+
+/**
+ * Belegt ist, was das Unternehmen ausgibt oder der Analystenkonsens schätzt. Danach
+ * sinkt das Wachstum in gleichen Schritten auf das ewige Wachstum der Vorlage, das es
+ * im ersten Jahr nach der Planung erreicht; die Marge bleibt auf dem letzten belegten
+ * Stand. Eine Regel für alle Fälle statt einer Schätzung je Fall — sie wird nicht
+ * nachgestellt, bis der Kurs passt.
+ */
+function fortschreiben(belegt: [number, number][], ewig: number, jahre = 5): ForecastYear[] {
+  const out = belegt.map(([g, m], i) => ({ year: i + 1, revenueGrowth: g, ebitdaMargin: m }));
+  const [gLetzt, mLetzt] = belegt[belegt.length - 1];
+  const rest = jahre - belegt.length;
+  for (let k = 1; k <= rest; k++) {
+    const g = gLetzt - ((gLetzt - ewig) * k) / (rest + 1);
+    out.push({ year: belegt.length + k, revenueGrowth: Math.round(g * 10) / 10, ebitdaMargin: mLetzt });
+  }
+  return out;
+}
+
+const FALLPLAN: Record<string, Fallplan> = {
   // Adyen: für 2026 laut Halbjahresbericht 21–23 % Wachstum (währungsbereinigt, mit
   // Zukäufen), laut Q3-Update 50 % EBITDA-Marge; das Ziel „über 55 % bis 2028“ ist
   // mit dem Q3-Update gestrichen, deshalb
@@ -72,6 +99,29 @@ const FALLPLAN: Record<string, { forecast: ForecastYear[]; ohnePeers?: string[] 
     ],
     ohnePeers: ["NEXI.MI", "WLN.PA"],
   },
+  // NVIDIA, Geschäftsjahr endet im Januar. GJ 2027: neun Monate 293,7 Mrd. USD plus
+  // Ausblick Q4 130 Mrd. = +96 % (Q4 mit einer Woche mehr). GJ 2028: Ausblick des
+  // Unternehmens rund +75 %. GJ 2029: Konsens rund +30 % (900–940 Mrd., nur 38
+  // Analysten). Marge: Q3 GAAP-EBITDA 68 %, Bruttomarge für Q4 drei Punkte tiefer
+  // ausgegeben, daher 67 % im laufenden Jahr und 65 % danach.
+  "NVDA": { belegt: [[96, 67], [75, 65], [30, 65]] },
+  // BlackRock. 2026: neun Monate 21.534 Mio. USD plus Q3 als Schätzung für Q4 = +21 %.
+  // 2027: Konsens 32,4–32,8 Mrd. = +11 %. Marge: bereinigtes operatives Ergebnis der
+  // neun Monate 8.915 Mio. auf den Gesamtumsatz = 41 %. Banken stehen als Peers da,
+  // zählen aber nicht: Für eine Bank ist EV/EBITDA keine Kennzahl, weil Einlagen
+  // Betriebsmittel sind und keine Finanzschulden.
+  "BLK": { belegt: [[21, 41], [11, 41]], ohnePeers: ["GS", "JPM"] },
+  // Snowflake, Geschäftsjahr endet im Januar. GJ 2027: Produktumsatz laut Ausblick
+  // 6.070 Mio. USD plus Dienstleistungen = +34 %. GJ 2028: Konsens 8,13 Mrd. = +29 %.
+  // Marge: ausgegebene operative Marge non-GAAP 14,5 % plus Abschreibungen = 17 %.
+  // Aktienvergütung ist darin NICHT abgezogen; das schmeichelt dem DCF.
+  "SNOW": { belegt: [[34, 17], [29, 17]] },
+  // Novo Nordisk. 2026: Ausblick für den bereinigten Umsatz −2 bis +2 % (ohne die
+  // einmalige Auflösung der 340B-Rückstellung). 2027: Konsens rund +1 %, kein Ausblick
+  // des Unternehmens. Marge: bereinigtes EBITDA der neun Monate 2026 = 51 %.
+  // Investitionen liegen 2026 bei rund 50 Mrd. DKK (16 % des Umsatzes), das Modell
+  // rechnet mit 5 % — der DCF ist an dieser Stelle zu freundlich.
+  "NOVO-B.CO": { belegt: [[0, 51], [1, 51]] },
 };
 
 function seedCase(id: string, ticker: string, tpl: SectorTemplate, scenario: Scenario,
@@ -100,7 +150,9 @@ function seedCase(id: string, ticker: string, tpl: SectorTemplate, scenario: Sce
     exitMultiple: tpl.exitMultiple,
   };
   const g = t.subSector?.includes("AI") ? 28 : t.subSector?.includes("Pay") ? 13 : 9;
-  const forecast: ForecastYear[] = plan?.forecast ?? [
+  const forecast: ForecastYear[] = plan?.forecast
+    ?? (plan?.belegt ? fortschreiben(plan.belegt, tpl.terminal) : null)
+    ?? [
     { year: 1, revenueGrowth: g,     ebitdaMargin: ebMargin },
     { year: 2, revenueGrowth: g - 1, ebitdaMargin: ebMargin + 1 },
     { year: 3, revenueGrowth: g - 3, ebitdaMargin: ebMargin + 1 },
