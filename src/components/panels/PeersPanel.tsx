@@ -34,7 +34,7 @@ export function PeersPanel({ peers, onPeer, onAdd, onRemove, median }: Props) {
               <th style={{ width: 32 }}></th>
               <th>Company</th>
               <th style={{ width: 80 }}>Ticker</th>
-              <th>Rev Growth</th>
+              <th title="Analyst consensus for the current fiscal year">Rev Growth (cons.)</th>
               <th>EBITDA Margin</th>
               <th>EV / Revenue</th>
               <th>EV / EBITDA</th>
@@ -91,12 +91,15 @@ export function PeersPanel({ peers, onPeer, onAdd, onRemove, median }: Props) {
             </tr>
           </tbody>
         </table>
-        {peers.some((p) => !multipleAussagefaehig(p.evEbitda)) && (
-          <p style={{ padding: "12px 20px 16px", margin: 0, color: "var(--muted)", fontSize: 12.5, lineHeight: 1.55 }}>
-            Peers with EV/EBITDA of zero or above {MAX_EV_EBITDA}x are listed but not included: with EBITDA near zero
+        <p style={{ padding: "12px 20px 16px", margin: 0, color: "var(--muted)", fontSize: 12.5, lineHeight: 1.55 }}>
+          Suggested peers come from the same or a neighbouring sector. Revenue growth is the analyst consensus for the
+          current fiscal year, acquisitions and disposals included; multiples are trailing twelve months. Source: Yahoo
+          Finance, 23 Nov 2026.
+          {peers.some((p) => !multipleAussagefaehig(p.evEbitda)) && <>
+            {" "}Peers with EV/EBITDA of zero or above {MAX_EV_EBITDA}x are listed but not included: with EBITDA near zero
             the multiple says nothing about value, and banks report no EBITDA at all. Tick one in only if you have a reason.
-          </p>
-        )}
+          </>}
+        </p>
       </div>
     </section>
   );
