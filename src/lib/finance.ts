@@ -156,7 +156,7 @@ export const INITIAL_FORECAST: ForecastYear[] = [
 
 export const INITIAL_PEERS: Peer[] = [
   { included: true,  name: "PayPal",    ticker: "PYPL",    revenueGrowth: 7,  ebitdaMargin: 24, evRevenue: 2.4, evEbitda: 9.8 },
-  { included: true,  name: "Block",     ticker: "SQ",      revenueGrowth: 11, ebitdaMargin: 18, evRevenue: 1.8, evEbitda: 12.6 },
+  { included: true,  name: "Block",     ticker: "XYZ",     revenueGrowth: 11, ebitdaMargin: 18, evRevenue: 1.8, evEbitda: 12.6 },
   { included: true,  name: "Wise",      ticker: "WISE.L",  revenueGrowth: 18, ebitdaMargin: 32, evRevenue: 6.2, evEbitda: 19.4 },
   { included: true,  name: "Nexi",      ticker: "NEXI.MI", revenueGrowth: 5,  ebitdaMargin: 50, evRevenue: 3.1, evEbitda: 8.7 },
   { included: false, name: "Worldline", ticker: "WLN.PA",  revenueGrowth: 4,  ebitdaMargin: 27, evRevenue: 1.4, evEbitda: 5.9 },

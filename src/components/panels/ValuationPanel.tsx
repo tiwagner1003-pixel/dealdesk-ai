@@ -87,7 +87,7 @@ export function ValuationPanel({
           {!hasComps ? (
             <div style={{ padding: 20, color: "var(--muted)", fontSize: 13, lineHeight: 1.55 }}>
               No comparable peers are included, so the valuation rests on the DCF alone.
-              The database holds too few companies from this sector for a meaningful median.
+              The database holds too few companies from this sector with a meaningful EV/EBITDA for a median.
               Include a suggested peer or add your own on the Peers tab to triangulate it.
             </div>
           ) : <>

@@ -2,6 +2,7 @@
 
 import { Ico } from "../icons";
 import type { Peer } from "@/lib/types";
+import { MAX_EV_EBITDA, multipleAussagefaehig } from "@/lib/marketDb";
 
 type Props = {
   peers: Peer[];
@@ -90,6 +91,12 @@ export function PeersPanel({ peers, onPeer, onAdd, onRemove, median }: Props) {
             </tr>
           </tbody>
         </table>
+        {peers.some((p) => !multipleAussagefaehig(p.evEbitda)) && (
+          <p style={{ padding: "12px 20px 16px", margin: 0, color: "var(--muted)", fontSize: 12.5, lineHeight: 1.55 }}>
+            Peers with EV/EBITDA of zero or above {MAX_EV_EBITDA}x are listed but not included: with EBITDA near zero
+            the multiple says nothing about value, and banks report no EBITDA at all. Tick one in only if you have a reason.
+          </p>
+        )}
       </div>
     </section>
   );

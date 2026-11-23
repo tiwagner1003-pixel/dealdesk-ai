@@ -8,8 +8,6 @@ import type { TickerInfo } from "./marketDb";
  * entsprechen (Frankfurt → XETR, Kopenhagen → OMXCOP, NOVO-B → NOVO_B).
  */
 const EINZELN: Record<string, string> = {
-  // Block handelt seit Januar 2025 unter XYZ; SQ gibt es nicht mehr.
-  "SQ": "NYSE:XYZ",
   "ADYEN.AS": "EURONEXT:ADYEN",
   "ASML.AS": "EURONEXT:ASML",
   "MC.PA": "EURONEXT:MC",
@@ -20,6 +18,22 @@ const EINZELN: Record<string, string> = {
   "WISE.L": "LSE:WISE",
   "NEXI.MI": "MIL:NEXI",
   "NOVO-B.CO": "OMXCOP:NOVO_B",
+  "IFX.DE": "XETR:IFX",
+  "VOW3.DE": "XETR:VOW3",
+  "BMW.DE": "XETR:BMW",
+  "MBG.DE": "XETR:MBG",
+  "BEI.DE": "XETR:BEI",
+  "DWS.DE": "XETR:DWS",
+  "STLAM.MI": "MIL:STLAM",
+  "SU.PA": "EURONEXT:SU",
+  "RMS.PA": "EURONEXT:RMS",
+  "KER.PA": "EURONEXT:KER",
+  "SAN.PA": "EURONEXT:SAN",
+  "AMUN.PA": "EURONEXT:AMUN",
+  "ABBN.SW": "SIX:ABBN",
+  "CFR.SW": "SIX:CFR",
+  "RO.SW": "SIX:RO",
+  "STMPA.PA": "EURONEXT:STMPA",
 };
 
 const US_BOERSE: Record<string, string> = { NSDQ: "NASDAQ", NYSE: "NYSE" };

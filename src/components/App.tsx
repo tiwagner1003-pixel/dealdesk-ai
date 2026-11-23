@@ -58,6 +58,12 @@ type CaseState = {
 type Fallplan = {
   /** Fertige Prognose, Jahr für Jahr. */
   forecast?: ForecastYear[];
+  /**
+   * Umsatz des letzten abgeschlossenen Geschäftsjahrs, auf den das Wachstum aus dem
+   * Konsens aufsetzt. Ohne Angabe gilt der Umsatz der letzten zwölf Monate aus der
+   * Datenbank — der passt nur, wenn das Wachstum selbst auf zwölf Monate bezogen ist.
+   */
+  basis?: number;
   /** Belegte Jahre als [Wachstum, EBITDA-Marge]; der Rest wird nach `fortschreiben` ergänzt. */
   belegt?: [number, number][];
   /** Vorgeschlagene Peers, die angezeigt werden, aber nicht zählen. */
@@ -122,6 +128,35 @@ const FALLPLAN: Record<string, Fallplan> = {
   // Investitionen liegen 2026 bei rund 50 Mrd. DKK (16 % des Umsatzes), das Modell
   // rechnet mit 5 % — der DCF ist an dieser Stelle zu freundlich.
   "NOVO-B.CO": { belegt: [[0, 51], [1, 51]] },
+  // ASML. 2026: Ausblick 44–45 Mrd. EUR = +36 %. 2027: kein Ausblick, Konsens rund
+  // +28 % (Bloomberg; Yahoo-Mittel 57,4 Mrd., vor dem Q3-Bericht). Marge: operative
+  // Marge Q3 44,4 %, aus dem Q4-Ausblick (57 % Bruttomarge, 1,6 Mrd. Kosten) rund 46 %,
+  // das schwächere erste Halbjahr zieht das Jahr auf rund 42 %; danach 45 %. Dazu
+  // jeweils knapp drei Punkte Abschreibungen wie 2025 (916 Mio. auf 32,7 Mrd.).
+  "ASML.AS": { belegt: [[36, 45], [28, 48]] },
+  // Die folgenden sechs stehen auf dem Analystenkonsens bei Yahoo (Stand 23.11.2026):
+  // Umsatz des laufenden und des nächsten Geschäftsjahrs, Marge aus dem EBITDA der
+  // letzten zwölf Monate. Kein Unternehmensausblick, keine eigene Schätzung.
+  //
+  // SAP. 2025: 36.801 Mio. EUR. Konsens 2026 40,5 Mrd. (+9,9 %), 2027 45,3 Mrd. (+12 %).
+  "SAP.DE": { basis: 36801, belegt: [[9.9, 31], [12, 31]] },
+  // Siemens, Geschäftsjahr endet im September. GJ 2026: 83,4 Mrd. EUR. Konsens GJ 2027
+  // 91,3 Mrd. (+9,5 %, nur sieben Analysten), GJ 2028 97,6 Mrd. (+7 %).
+  "SIE.DE": { basis: 83374, belegt: [[9.5, 18], [7, 18]] },
+  // Infineon, Geschäftsjahr endet im September. GJ 2026: 16,35 Mrd. EUR. Konsens
+  // GJ 2027 +17,2 %; für GJ 2028 gibt es bei Yahoo keinen Wert, deshalb nur ein Jahr.
+  "IFX.DE": { basis: 16351, belegt: [[17.2, 25]] },
+  // AMD. 2025: 34.638 Mio. USD. Konsens 2026 52,2 Mrd. (+51 %), 2027 95,9 Mrd. (+84 %,
+  // 50 Analysten) — der Sprung kommt aus den angekündigten Rechenzentrumsaufträgen und
+  // ist so unsicher, wie er aussieht. Die Marge der letzten zwölf Monate (24,5 %) wird
+  // nicht hochgezogen, obwohl Skalierung sie heben dürfte.
+  "AMD": { basis: 34638, belegt: [[50.8, 24.5], [83.6, 24.5]] },
+  // LVMH. 2025: 80.805 Mio. EUR. Konsens 2026 −0,4 %, 2027 +4,4 %.
+  "MC.PA": { basis: 80805, belegt: [[-0.4, 25], [4.4, 25]] },
+  // ExxonMobil. 2025: 332.236 Mio. USD. Konsens 2026 +31,3 % (Ölpreis), 2027 flach.
+  // Die Marge von 20 % stammt aus einem Jahr mit hohen Preisen; fällt der Ölpreis,
+  // fällt sie mit — das Modell hält sie fest.
+  "XOM": { basis: 332236, belegt: [[31.3, 20], [0, 20]] },
 };
 
 function seedCase(id: string, ticker: string, tpl: SectorTemplate, scenario: Scenario,
@@ -138,7 +173,7 @@ function seedCase(id: string, ticker: string, tpl: SectorTemplate, scenario: Sce
   const plan = FALLPLAN[t.ticker];
   const ebMargin = t.ebitda > 0 && t.revenue > 0 ? Math.round((t.ebitda / t.revenue) * 100) : 30;
   const model: ModelInput = {
-    revenue: t.revenue || 1000,
+    revenue: plan?.basis ?? (t.revenue || 1000),
     depreciationPercent: 4,
     taxRate: 25,
     capexPercent: 5,
@@ -174,6 +209,7 @@ const TPL_LUX  = SECTOR_TEMPLATES.find((t) => t.id === "lux")!;
 const TPL_PHA  = SECTOR_TEMPLATES.find((t) => t.id === "pharma")!;
 const TPL_BNK  = SECTOR_TEMPLATES.find((t) => t.id === "bank")!;
 const TPL_ENE  = SECTOR_TEMPLATES.find((t) => t.id === "energy")!;
+const TPL_IND  = SECTOR_TEMPLATES.find((t) => t.id === "indust")!;
 
 const SEED_CASES: CaseState[] = [
   seedCase("adyen",   "ADYEN.AS", TPL_FIN,  "base",     "In review", "Luca Schmidt",      "14:08 today"),
@@ -186,6 +222,12 @@ const SEED_CASES: CaseState[] = [
   seedCase("blk",     "BLK",      TPL_BNK,  "upside",   "Approved",  "Tobias Reinhardt",  "May 20"),
   seedCase("snow",    "SNOW",     TPL_SAAS, "downside", "Archived",  "Luca Schmidt",      "May 18"),
   seedCase("xom",     "XOM",      TPL_ENE,  "downside", "Approved",  "Tobias Reinhardt",  "May 10"),
+  seedCase("sap",     "SAP.DE",   TPL_SAAS, "base",     "In review", "Marie Forster",     "May 8"),
+  seedCase("siemens", "SIE.DE",   TPL_IND,  "base",     "Draft",     "Tobias Reinhardt",  "May 6"),
+  // Infineon mit der Industrievorlage: Leistungshalbleiter für Auto und Industrie
+  // laufen mit deren Zyklus, nicht mit dem der KI-Rechenzentren.
+  seedCase("infineon","IFX.DE",   TPL_IND,  "base",     "Draft",     "Marie Forster",     "May 5"),
+  seedCase("amd",     "AMD",      TPL_AI,   "base",     "In review", "Sebastian Krüger",  "May 4"),
 ];
 
 function stamp() {
@@ -213,7 +255,10 @@ export function App() {
   useEffect(() => {
     const stored = loadState<CaseState>();
     if (stored) {
-      setCases(stored.cases.map((c) => ({ ...c, generating: false })));
+      // Neue Beispielfälle auch für wiederkehrende Besucher; vorhandene bleiben, wie sie sind.
+      const bekannt = new Set(stored.cases.map((c) => c.id));
+      setCases([...stored.cases.map((c) => ({ ...c, generating: false })),
+                ...SEED_CASES.filter((c) => !bekannt.has(c.id))]);
       setOpenCases(stored.openCases);
       setActiveCase(stored.activeCase);
       setTheme(stored.theme);
@@ -291,12 +336,14 @@ export function App() {
   // recent/library cases — derive from CaseState[]
   const libCases: LibraryCase[] = cases.map((c) => {
     const t = findTicker(c.company.ticker);
+    const k = kpiOf(c);
     return {
       id: c.id, name: c.company.name, ticker: c.company.ticker, sector: c.company.sector,
       ccy: c.company.currency, scenario: c.scenario, status: c.status,
       author: c.author, updated: c.updated,
-      ev: undefined, // could compute on demand
-      upside: t && !t.priv ? null as any : undefined,
+      ev: k.ev,
+      // Ohne Börsenkurs gibt es keinen Abstand zum Kurs, nur einen zum eigenen Abschlag.
+      upside: t && !t.priv ? k.upside : undefined,
     };
   });
   const recent: RecentCase[] = libCases.map((c) => ({
